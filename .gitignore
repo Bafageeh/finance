@@ -39,3 +39,12 @@ backups
 **/*.bak
 **/*.bak-*
 **/*.backup
+
+# Backup exclusions
+**/.backup-*
+**/*backup*
+**/*-backup*
+**/*_backup*
+**/*.bak
+**/*.bak-*
+**/*.backup
