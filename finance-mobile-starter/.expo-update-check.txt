@@ -1,3 +1,4 @@
 Expo update workflow check
 Triggered from ChatGPT on 2026-04-29.
+EXPO_TOKEN was added, so this update should trigger the GitHub Action again.
 This file is safe to remove after verification.
