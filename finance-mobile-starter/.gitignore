@@ -1,0 +1,14 @@
+node_modules
+.expo
+dist
+build
+.env
+.env.*
+!.env.example
+*.log
+*.zip
+*.tar
+*.tar.gz
+*.bak
+backup*
+*-backup*

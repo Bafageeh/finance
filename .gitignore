@@ -1,0 +1,41 @@
+# Laravel API
+finance-api/vendor
+finance-api/.env
+finance-api/.env.*
+!finance-api/.env.example
+finance-api/storage/logs/*
+finance-api/storage/framework/cache/*
+finance-api/storage/framework/sessions/*
+finance-api/storage/framework/views/*
+finance-api/bootstrap/cache/*.php
+
+# Mobile / Expo / React Native
+finance-mobile-starter/node_modules
+finance-mobile-starter/.expo
+finance-mobile-starter/dist
+finance-mobile-starter/build
+finance-mobile-starter/.env
+finance-mobile-starter/.env.*
+!finance-mobile-starter/.env.example
+
+# General
+.DS_Store
+*.log
+*.zip
+*.tar
+*.tar.gz
+*.bak
+backup*
+*-backup*
+backups
+*_backup
+*.sql
+
+# Strong backup exclusions
+**/.backup-*
+**/*backup*
+**/*-backup*
+**/*_backup*
+**/*.bak
+**/*.bak-*
+**/*.backup

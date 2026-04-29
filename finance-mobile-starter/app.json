@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Finance Mobile",
+    "slug": "finance-mobile",
+    "scheme": "finance-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sharing"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "android": {
+      "package": "com.example.financemobile"
+    },
+    "ios": {
+      "bundleIdentifier": "com.example.financemobile"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "11f1653b-2335-4f9d-82db-b5534fcb2624"
+      }
+    }
+  }
+}
