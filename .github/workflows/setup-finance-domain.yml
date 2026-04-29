@@ -1,0 +1,27 @@
+name: Setup Finance Domain
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/setup-finance-domain.yml'
+      - 'finance-api/.domain-trigger.txt'
+
+jobs:
+  setup-domain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+      - name: Setup subdomain and refresh Laravel
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${DEPLOY_USER}@${DEPLOY_HOST}" "cd /home/pmsa/apps/finance && git fetch origin main && git reset --hard origin/main && cd finance-api && composer install --no-dev --optimize-autoloader && php artisan migrate --force && php artisan optimize:clear && php artisan route:clear && php artisan config:clear && php artisan cache:clear && (uapi SubDomain addsubdomain domain=finance rootdomain=pm.sa dir=apps/finance/finance-api/public || true) && php artisan route:list --path=api/v1"
