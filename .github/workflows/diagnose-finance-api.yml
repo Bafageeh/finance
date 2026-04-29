@@ -1,0 +1,127 @@
+name: Diagnose Finance API
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/diagnose-finance-api.yml'
+      - 'finance-api/.diagnose-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose-api:
+    name: Diagnose deployed Laravel API
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Collect diagnostics from server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          mkdir -p diagnostics
+          ssh -i ~/.ssh/deploy_key \
+            -p "${DEPLOY_PORT:-22}" \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" <<'EOF' > diagnostics/finance-api-diagnostics.txt 2>&1
+          set +e
+          echo "== Finance API diagnostics =="
+          date
+          echo
+          echo "== Current user and paths =="
+          whoami
+          pwd
+          echo
+          echo "== /home/pmsa/apps finance paths =="
+          ls -la /home/pmsa/apps | grep -E 'finance|rentals' || true
+          echo
+          for path in \
+            /home/pmsa/apps/finance \
+            /home/pmsa/apps/finance/finance-api \
+            /home/pmsa/apps/finance-api \
+            /home/pmsa/public_html \
+            /home/pmsa/public_html/api \
+            /home/pmsa/public_html/index.php \
+            /home/pmsa/public_html/.htaccess \
+            /home/pmsa/public_html/api/index.php \
+            /home/pmsa/public_html/api/.htaccess; do
+            echo "--- $path"
+            ls -ld "$path" 2>&1 || true
+            if [ -L "$path" ]; then
+              echo "SYMLINK -> $(readlink "$path")"
+              echo "REALPATH -> $(realpath "$path" 2>/dev/null)"
+            fi
+          done
+          echo
+          echo "== route file checks =="
+          for file in \
+            /home/pmsa/apps/finance/finance-api/routes/api.php \
+            /home/pmsa/apps/finance-api/routes/api.php \
+            /home/pmsa/public_html/api/routes/api.php \
+            /home/pmsa/public_html/routes/api.php; do
+            echo "--- $file"
+            if [ -f "$file" ]; then
+              grep -nE "auth/login|Route::post\('login'|prefix\('v1'" "$file" || true
+            else
+              echo "missing"
+            fi
+          done
+          echo
+          echo "== Laravel route lists =="
+          for dir in \
+            /home/pmsa/apps/finance/finance-api \
+            /home/pmsa/apps/finance-api \
+            /home/pmsa/public_html/api \
+            /home/pmsa/public_html; do
+            echo "--- $dir"
+            if [ -f "$dir/artisan" ]; then
+              cd "$dir"
+              php artisan route:clear 2>&1 || true
+              php artisan route:list --path=api/v1 2>&1 | head -120 || true
+            else
+              echo "no artisan"
+            fi
+          done
+          echo
+          echo "== HTTP tests =="
+          echo "--- POST https://my.pm.sa/api/v1/auth/login"
+          curl -k -i -s -X POST 'https://my.pm.sa/api/v1/auth/login' \
+            -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data '{"login":"__diagnostic__","password":"__diagnostic__"}' | head -80 || true
+          echo
+          echo "--- POST https://my.pm.sa/api/v1/login"
+          curl -k -i -s -X POST 'https://my.pm.sa/api/v1/login' \
+            -H 'Accept: application/json' \
+            -H 'Content-Type: application/json' \
+            --data '{"login":"__diagnostic__","password":"__diagnostic__"}' | head -80 || true
+          echo
+          echo "--- GET https://my.pm.sa/up"
+          curl -k -i -s 'https://my.pm.sa/up' | head -40 || true
+          echo
+          echo "--- GET https://my.pm.sa/api/up"
+          curl -k -i -s 'https://my.pm.sa/api/up' | head -40 || true
+          EOF
+
+      - name: Commit diagnostics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add diagnostics/finance-api-diagnostics.txt
+          git commit -m "Add Finance API diagnostics" || exit 0
+          git push
