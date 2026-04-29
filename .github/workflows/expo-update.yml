@@ -41,4 +41,4 @@ jobs:
         env:
           EXPO_PUBLIC_API_BASE_URL: https://my.pm.sa/api/v1
           EXPO_PUBLIC_USE_MOCKS: 'false'
-        run: npx eas update --branch preview --message "GitHub update ${{ github.sha }}" --non-interactive
+        run: eas update --branch preview --message "GitHub update ${{ github.sha }}" --non-interactive
