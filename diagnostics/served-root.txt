@@ -1,0 +1,86 @@
+Pseudo-terminal will not be allocated because stdin is not a terminal.
+Warning: Permanently added '[my.pm.sa]:2222' (ED25519) to the list of known hosts.
+Last failed login: Thu Apr 30 01:28:43 +03 2026 from 52.186.174.148 on ssh:notty
+There were 8 failed login attempts since the last successful login.
+== find artisan files ==
+/home/pmsa/apps/finance/finance-api/artisan
+/home/pmsa/apps/my-rentals-api/artisan
+
+== likely roots route status ==
+--- /home/pmsa
+no artisan
+--- /home/pmsa/apps/finance-api
+
+  POST            api/v1/auth/login ................. Api\AuthController@login
+  POST            api/v1/auth/logout ............... Api\AuthController@logout
+  GET|HEAD        api/v1/auth/me ....................... Api\AuthController@me
+  GET|HEAD        api/v1/clients .. clients.index › Api\ClientController@index
+  POST            api/v1/clients .. clients.store › Api\ClientController@store
+  GET|HEAD        api/v1/clients/{client} clients.show › Api\ClientController…
+  PUT|PATCH       api/v1/clients/{client} clients.update › Api\ClientControll…
+  DELETE          api/v1/clients/{client} clients.destroy › Api\ClientControl…
+  GET|HEAD        api/v1/clients/{client}/follow-ups Api\FollowUpController@i…
+  POST            api/v1/clients/{client}/follow-ups Api\FollowUpController@s…
+  GET|HEAD        api/v1/clients/{client}/follow-ups/summary Api\FollowUpCont…
+  POST            api/v1/clients/{client}/pay Api\ClientController@recordPaym…
+  DELETE          api/v1/clients/{client}/pay/{periodKey} Api\ClientControlle…
+  GET|HEAD        api/v1/clients/{client}/reminders/summary Api\ClientReminde…
+  POST            api/v1/clients/{client}/reminders/upsert Api\ClientReminder…
+  GET|HEAD        api/v1/follow-ups/summaries Api\FollowUpController@summaries
+  POST            api/v1/login ...................... Api\AuthController@login
+  POST            api/v1/logout .................... Api\AuthController@logout
+  GET|HEAD        api/v1/me ............................ Api\AuthController@me
+  GET|HEAD        api/v1/stats .................... Api\ClientController@stats
+  GET|HEAD        api/v1/user .......................... Api\AuthController@me
+
+                                                           Showing [21] routes
+
+--- /home/pmsa/apps/finance/finance-api
+
+  POST            api/v1/auth/login ................. Api\AuthController@login
+  POST            api/v1/auth/logout ............... Api\AuthController@logout
+  GET|HEAD        api/v1/auth/me ....................... Api\AuthController@me
+  GET|HEAD        api/v1/clients .. clients.index › Api\ClientController@index
+  POST            api/v1/clients .. clients.store › Api\ClientController@store
+  GET|HEAD        api/v1/clients/{client} clients.show › Api\ClientController…
+  PUT|PATCH       api/v1/clients/{client} clients.update › Api\ClientControll…
+  DELETE          api/v1/clients/{client} clients.destroy › Api\ClientControl…
+  GET|HEAD        api/v1/clients/{client}/follow-ups Api\FollowUpController@i…
+  POST            api/v1/clients/{client}/follow-ups Api\FollowUpController@s…
+  GET|HEAD        api/v1/clients/{client}/follow-ups/summary Api\FollowUpCont…
+  POST            api/v1/clients/{client}/pay Api\ClientController@recordPaym…
+  DELETE          api/v1/clients/{client}/pay/{periodKey} Api\ClientControlle…
+  GET|HEAD        api/v1/clients/{client}/reminders/summary Api\ClientReminde…
+  POST            api/v1/clients/{client}/reminders/upsert Api\ClientReminder…
+  GET|HEAD        api/v1/follow-ups/summaries Api\FollowUpController@summaries
+  POST            api/v1/login ...................... Api\AuthController@login
+  POST            api/v1/logout .................... Api\AuthController@logout
+  GET|HEAD        api/v1/me ............................ Api\AuthController@me
+  GET|HEAD        api/v1/stats .................... Api\ClientController@stats
+  GET|HEAD        api/v1/user .......................... Api\AuthController@me
+
+                                                           Showing [21] routes
+
+--- /home/pmsa/public_html
+no artisan
+--- /home/pmsa/apps/finance-web
+no artisan
+
+== public files metadata ==
+--- /home/pmsa/public_html/index.php
+-rw-r--r-- 1 pmsa pmsa 2704 May 30  2024 /home/pmsa/public_html/index.php
+--- /home/pmsa/public_html/.htaccess
+-rw-r--r-- 1 pmsa pmsa 498 Apr 24 02:50 /home/pmsa/public_html/.htaccess
+
+== http probes ==
+HTTP/1.1 404 Not Found
+Date: Wed, 29 Apr 2026 22:53:26 GMT
+Server: Apache
+Cache-Control: no-cache, private
+Access-Control-Allow-Origin: *
+Transfer-Encoding: chunked
+Content-Type: application/json
+
+{
+    "message": "The route api/v1/login could not be found."
+}
