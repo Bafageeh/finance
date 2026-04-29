@@ -1,0 +1,63 @@
+name: Find Served Finance Root
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/find-served-finance-root.yml'
+      - 'finance-api/.find-root-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  find-root:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+      - name: Check likely served roots
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          mkdir -p diagnostics
+          ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${DEPLOY_USER}@${DEPLOY_HOST}" <<'EOF' > diagnostics/served-root.txt 2>&1
+          set +e
+          echo "== find artisan files =="
+          find /home/pmsa -maxdepth 5 -name artisan -type f 2>/dev/null | sort
+          echo
+          echo "== likely roots route status =="
+          for dir in /home/pmsa /home/pmsa/apps/finance-api /home/pmsa/apps/finance/finance-api /home/pmsa/public_html /home/pmsa/apps/finance-web; do
+            echo "--- $dir"
+            if [ -f "$dir/artisan" ]; then
+              cd "$dir"
+              php artisan route:list --path=api/v1 2>&1 | head -80
+            else
+              echo "no artisan"
+            fi
+          done
+          echo
+          echo "== public files metadata =="
+          for file in /home/pmsa/public_html/index.php /home/pmsa/public_html/.htaccess; do
+            echo "--- $file"
+            ls -l "$file" 2>&1 || true
+          done
+          echo
+          echo "== http probes =="
+          curl -k -i -s -X POST https://my.pm.sa/api/v1/login -H 'Accept: application/json' -H 'Content-Type: application/json' --data '{"login":"x","password":"x"}' | head -40
+          EOF
+      - name: Commit diagnostics
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add diagnostics/served-root.txt
+          git commit -m "Add served root diagnostics" || exit 0
+          git push
