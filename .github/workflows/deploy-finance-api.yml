@@ -1,0 +1,59 @@
+name: Deploy Finance API
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'finance-api/**'
+      - '.github/workflows/deploy-finance-api.yml'
+
+jobs:
+  deploy-api:
+    name: Deploy Laravel API to server
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Deploy API
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -p "${DEPLOY_PORT:-22}" \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" <<'EOF'
+          set -e
+
+          cd /home/pmsa/apps/finance
+          git fetch origin main
+          git reset --hard origin/main
+
+          cd finance-api
+
+          if [ -f composer.json ]; then
+            composer install --no-dev --optimize-autoloader
+          fi
+
+          if [ -f artisan ]; then
+            php artisan migrate --force
+            php artisan optimize:clear
+            php artisan config:clear
+            php artisan route:clear
+            php artisan cache:clear
+          fi
+
+          php artisan route:list | grep -E 'api/v1/(auth/login|login)' || true
+          EOF
