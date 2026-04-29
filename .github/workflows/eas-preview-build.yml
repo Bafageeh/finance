@@ -1,0 +1,44 @@
+name: Build Android preview APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/eas-preview-build.yml'
+      - 'finance-mobile-starter/.eas-build-trigger.txt'
+
+jobs:
+  build-android-preview:
+    name: Build Android Preview APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: finance-mobile-starter
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: finance-mobile-starter/package-lock.json
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Android APK with EAS preview profile
+        env:
+          EXPO_PUBLIC_API_BASE_URL: https://my.pm.sa/api/v1
+          EXPO_PUBLIC_USE_MOCKS: 'false'
+        run: eas build --platform android --profile preview --non-interactive --wait
