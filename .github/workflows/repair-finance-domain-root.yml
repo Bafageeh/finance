@@ -1,0 +1,27 @@
+name: Repair Finance Domain Root
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/repair-finance-domain-root.yml'
+      - 'finance-api/.repair-domain-root-trigger.txt'
+
+jobs:
+  repair-root:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+      - name: Repair domain root symlink
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p /home/pmsa/public_html/apps && rm -rf /home/pmsa/public_html/apps/finance && ln -s /home/pmsa/apps/finance /home/pmsa/public_html/apps/finance && cd /home/pmsa/apps/finance && git fetch origin main && git reset --hard origin/main && cd finance-api && composer install --no-dev --optimize-autoloader && php artisan migrate --force && php artisan optimize:clear && php artisan route:clear && php artisan config:clear && php artisan cache:clear && php artisan route:list --path=api/v1"
