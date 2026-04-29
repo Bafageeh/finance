@@ -37,11 +37,27 @@ jobs:
             "${DEPLOY_USER}@${DEPLOY_HOST}" <<'EOF'
           set -e
 
-          cd /home/pmsa/apps/finance
+          REPO_ROOT="/home/pmsa/apps/finance"
+          REPO_API="${REPO_ROOT}/finance-api"
+          SERVED_API="/home/pmsa/apps/finance-api"
+
+          cd "$REPO_ROOT"
           git fetch origin main
           git reset --hard origin/main
 
-          cd finance-api
+          # Keep the legacy served API path updated too, because the web server may still point to it.
+          # Preserve runtime files such as .env, storage, vendor, and framework cache folders.
+          mkdir -p "$SERVED_API"
+          rsync -a --delete \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='storage' \
+            --exclude='vendor' \
+            --exclude='node_modules' \
+            --exclude='bootstrap/cache/*.php' \
+            "$REPO_API/" "$SERVED_API/"
+
+          cd "$SERVED_API"
 
           if [ -f composer.json ]; then
             composer install --no-dev --optimize-autoloader
@@ -53,7 +69,7 @@ jobs:
             php artisan config:clear
             php artisan route:clear
             php artisan cache:clear
+            echo "==> Registered login routes:"
+            php artisan route:list | grep -E 'api/v1/(auth/login|login)' || true
           fi
-
-          php artisan route:list | grep -E 'api/v1/(auth/login|login)' || true
           EOF
