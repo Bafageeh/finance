@@ -1,0 +1,1 @@
+Trigger repair for finance.pm.sa document root symlink.
