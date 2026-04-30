@@ -91,6 +91,17 @@ class Client extends Model
 
         return round(($this->getMonthlyProfit() / $principal) * 100, 4);
     }
+
+    public function getFinancedAmount(): float
+    {
+        $totalProfit = $this->getTotalProfit();
+        $profitShare = $this->profit_share ?: 'shared';
+        $aliPct = $profitShare === 'ahmad_only' ? 0.0 : 0.35;
+        $baseAmount = $this->money($this->cost ?: $this->principal);
+
+        return $this->money($baseAmount + $this->getBondCostValue() + ($totalProfit * $aliPct));
+    }
+
     private function contractStartDate()
     {
         try {
@@ -214,16 +225,7 @@ public function getRemainingAmount(): float
 
     public function getRemainingPrincipal(): float
     {
-        $principal = $this->money($this->principal ?: $this->cost);
-        $bondTotal = $this->getCalculatedBondTotal();
-
-        if ($principal <= 0 || $bondTotal <= 0) {
-            return 0.0;
-        }
-
-        $principalCovered = min($principal, $principal * ($this->getPaidAmount() / $bondTotal));
-
-        return $this->money(max(0, $principal - $principalCovered));
+        return $this->money(max(0, $this->getFinancedAmount() - $this->getPaidAmount()));
     }
 
     private function paymentStatus(float $recordedPaidAmount, float $installmentAmount): string
@@ -297,7 +299,7 @@ public function getSummary(): array
         return [
             'monthly_installment' => $monthly,
             'bond_total'          => $bondTotal,
-            'financed_amount'     => $this->money($this->cost + $this->getBondCostValue() + ($totalProfit * $aliPct)),
+            'financed_amount'     => $this->getFinancedAmount(),
             'total_profit'        => $totalProfit,
             'monthly_profit'      => $this->getMonthlyProfit(),
             'effective_rate'      => $this->getEffectiveRate(),
