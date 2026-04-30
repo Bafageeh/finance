@@ -122,5 +122,8 @@ jobs:
           update_instance "$PRIMARY_APP" "finance"
           update_instance "$SARA_APP" "finance-sara"
 
+          /usr/local/cpanel/scripts/restartsrv_apache_php_fpm || true
+          /usr/local/cpanel/scripts/restartsrv_httpd || true
+
           echo "=== Finance deployment completed successfully ==="
           REMOTE
