@@ -1,0 +1,131 @@
+name: Deploy Finance
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: finance-production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to cPanel server
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SERVER_PORT: ${{ secrets.SERVER_PORT }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+      DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+
+    steps:
+      - name: Deploy both Finance instances over SSH
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          DEPLOY_HOST="${SSH_HOST:-${SERVER_HOST:-}}"
+          DEPLOY_USER="${SSH_USER:-${SERVER_USER:-root}}"
+          DEPLOY_PORT="${SSH_PORT:-${SERVER_PORT:-22}}"
+          KEY_CONTENT="${SSH_PRIVATE_KEY:-${SERVER_SSH_KEY:-${DEPLOY_KEY:-}}}"
+
+          if [ -z "$DEPLOY_HOST" ]; then
+            echo "Missing SSH host. Add GitHub secret SSH_HOST or SERVER_HOST."
+            exit 1
+          fi
+
+          if [ -z "$KEY_CONTENT" ]; then
+            echo "Missing SSH private key. Add GitHub secret SSH_PRIVATE_KEY, SERVER_SSH_KEY, or DEPLOY_KEY."
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY_CONTENT" > ~/.ssh/finance_deploy_key
+          chmod 600 ~/.ssh/finance_deploy_key
+
+          ssh -i ~/.ssh/finance_deploy_key \
+            -p "$DEPLOY_PORT" \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$DEPLOY_USER@$DEPLOY_HOST" 'bash -se' <<'REMOTE'
+          set -Eeuo pipefail
+
+          REPO_URL="https://github.com/Bafageeh/finance.git"
+          BASE_DIR="/mnt/home-storage/home/pmsa/apps"
+          PRIMARY_APP="$BASE_DIR/finance"
+          SARA_APP="$BASE_DIR/finance-sara"
+
+          update_instance() {
+            local app_dir="$1"
+            local label="$2"
+
+            echo "=== Updating $label: $app_dir ==="
+
+            if [ ! -d "$app_dir" ]; then
+              echo "Missing application directory: $app_dir"
+              exit 1
+            fi
+
+            if [ -f "$app_dir/finance-api/.env" ]; then
+              cp "$app_dir/finance-api/.env" "/tmp/${label}-finance-api.env"
+            fi
+
+            if [ -f "$app_dir/finance-mobile-starter/.env" ]; then
+              cp "$app_dir/finance-mobile-starter/.env" "/tmp/${label}-finance-mobile.env"
+            fi
+
+            chown -R pmsa:pmsa "$app_dir"
+
+            if [ ! -d "$app_dir/.git" ]; then
+              echo "Git repository not found for $label. Initializing it now."
+              su -s /bin/bash pmsa -c "
+                cd '$app_dir'
+                git init
+                git remote remove origin 2>/dev/null || true
+                git remote add origin '$REPO_URL'
+                git fetch origin main
+                git reset --hard origin/main
+              "
+            else
+              su -s /bin/bash pmsa -c "
+                cd '$app_dir'
+                git remote set-url origin '$REPO_URL'
+                git fetch origin main
+                git reset --hard origin/main
+              "
+            fi
+
+            if [ -f "/tmp/${label}-finance-api.env" ]; then
+              cp "/tmp/${label}-finance-api.env" "$app_dir/finance-api/.env"
+            fi
+
+            if [ -f "/tmp/${label}-finance-mobile.env" ]; then
+              cp "/tmp/${label}-finance-mobile.env" "$app_dir/finance-mobile-starter/.env"
+            fi
+
+            su -s /bin/bash pmsa -c "
+              cd '$app_dir/finance-api'
+              composer install --no-dev --optimize-autoloader --no-interaction
+              php artisan migrate --force
+              php artisan optimize:clear
+              php artisan config:cache
+            "
+
+            chown -R pmsa:pmsa "$app_dir"
+            chmod -R 775 "$app_dir/finance-api/storage" "$app_dir/finance-api/bootstrap/cache"
+          }
+
+          update_instance "$PRIMARY_APP" "finance"
+          update_instance "$SARA_APP" "finance-sara"
+
+          echo "=== Finance deployment completed successfully ==="
+          REMOTE
