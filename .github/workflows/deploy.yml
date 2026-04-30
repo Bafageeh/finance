@@ -33,15 +33,10 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          DEPLOY_HOST="${SSH_HOST:-${SERVER_HOST:-}}"
+          DEPLOY_HOST="${SSH_HOST:-${SERVER_HOST:-srv.pm.sa}}"
           DEPLOY_USER="${SSH_USER:-${SERVER_USER:-root}}"
           DEPLOY_PORT="${SSH_PORT:-${SERVER_PORT:-22}}"
           KEY_CONTENT="${SSH_PRIVATE_KEY:-${SERVER_SSH_KEY:-${DEPLOY_KEY:-}}}"
-
-          if [ -z "$DEPLOY_HOST" ]; then
-            echo "Missing SSH host. Add GitHub secret SSH_HOST or SERVER_HOST."
-            exit 1
-          fi
 
           if [ -z "$KEY_CONTENT" ]; then
             echo "Missing SSH private key. Add GitHub secret SSH_PRIVATE_KEY, SERVER_SSH_KEY, or DEPLOY_KEY."
