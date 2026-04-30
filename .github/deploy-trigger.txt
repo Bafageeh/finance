@@ -1,0 +1,4 @@
+Deploy trigger for latest Finance update.
+
+Triggered at: 2026-04-30
+Purpose: apply latest code changes to both finance and finance-sara through GitHub Actions.
