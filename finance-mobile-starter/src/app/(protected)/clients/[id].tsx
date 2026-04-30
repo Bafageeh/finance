@@ -91,6 +91,9 @@ export default function ClientDetailsScreen() {
         : overdueItems.length
           ? colors.danger
           : colors.success;
+  const remainingFinancedCapital = client
+    ? Math.max(0, (Number(client.summary.financed_amount) || 0) - (Number(client.summary.paid_amount) || 0))
+    : 0;
 
   function toggleSection(section: ExpandedSection) {
     setExpandedSections((current) => ({
@@ -257,7 +260,7 @@ export default function ClientDetailsScreen() {
             <AppCard title="مؤشرات مالية مختصرة">
               <View style={styles.metricGrid}>
                 <MetricCard label="قيمة السند" value={formatCurrency(client.summary.bond_total)} />
-                <MetricCard label="رأس المال المتبقي" value={formatCurrency(client.summary.remaining_principal)} tone="warning" />
+                <MetricCard label="رأس المال المتبقي" value={formatCurrency(remainingFinancedCapital)} tone="warning" />
                 <MetricCard label="ربح أحمد" value={formatCurrency(client.summary.ahmad_total)} tone="success" />
                 <MetricCard label="ربح علي" value={formatCurrency(client.summary.ali_total)} tone="info" />
               </View>
