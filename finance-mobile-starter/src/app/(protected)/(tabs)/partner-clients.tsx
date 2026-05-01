@@ -3,19 +3,22 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { ClientFilterDropdown } from '@/components/ClientFilterDropdown';
 import { ClientListItem } from '@/components/ClientListItem';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingBlock } from '@/components/LoadingBlock';
 import { MetricCard } from '@/components/MetricCard';
 import { Screen } from '@/components/Screen';
 import { getPartnerClients } from '@/services/api';
-import { Client } from '@/types/api';
+import { Client, ClientFilter } from '@/types/api';
+import { getClientAlertInfo } from '@/utils/finance';
 import { formatCurrency } from '@/utils/format';
 import { colors } from '@/utils/theme';
 
 export default function PartnerClientsScreen() {
   const isFocused = useIsFocused();
   const [clients, setClients] = useState<Client[]>([]);
+  const [filter, setFilter] = useState<ClientFilter>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,11 +40,23 @@ export default function PartnerClientsScreen() {
     if (isFocused) void loadData();
   }, [isFocused]);
 
+  const filteredClients = useMemo(() => {
+    return clients.filter((client) => {
+      const overdueCount = getClientAlertInfo(client).overdueCount;
+
+      if (filter === 'all') return true;
+      if (filter === 'court') return client.has_court;
+      if (filter === 'late') return overdueCount > 0;
+      if (filter === 'active') return client.status === 'active' && !client.has_court && overdueCount === 0;
+      return client.status === filter;
+    });
+  }, [clients, filter]);
+
   const summary = useMemo(() => {
-    const totalProfit = clients.reduce((sum, client) => sum + Number((client as any).partner_profit_total ?? client.summary?.ali_total ?? 0), 0);
-    const monthlyProfit = clients.reduce((sum, client) => sum + Number((client as any).partner_profit_monthly ?? client.summary?.ali_monthly ?? 0), 0);
+    const totalProfit = filteredClients.reduce((sum, client) => sum + Number((client as any).partner_profit_total ?? client.summary?.ali_total ?? 0), 0);
+    const monthlyProfit = filteredClients.reduce((sum, client) => sum + Number((client as any).partner_profit_monthly ?? client.summary?.ali_monthly ?? 0), 0);
     return { totalProfit, monthlyProfit };
-  }, [clients]);
+  }, [filteredClients]);
 
   const listHeader = (
     <View style={styles.headerStack}>
@@ -49,8 +64,14 @@ export default function PartnerClientsScreen() {
         <Ionicons name="eye-outline" size={18} color={colors.info} />
         <Text style={styles.noticeText}>هذه الشاشة عرض فقط لحساب علي، وتعرض أي عميل له نسبة ربح لعلي من جميع حسابات النظام.</Text>
       </View>
+
+      <View style={styles.filterRow}>
+        <ClientFilterDropdown value={filter} onChange={setFilter} />
+        <Text style={styles.filterHint}>فلترة عملاء الشركاء حسب الحالة</Text>
+      </View>
+
       <View style={styles.metricGrid}>
-        <MetricCard label="عدد العملاء" value={String(clients.length)} />
+        <MetricCard label="عدد العملاء" value={String(filteredClients.length)} />
         <MetricCard label="ربح علي الشهري" value={formatCurrency(summary.monthlyProfit)} tone="info" />
         <MetricCard label="ربح علي الكلي" value={formatCurrency(summary.totalProfit)} tone="success" />
       </View>
@@ -80,7 +101,7 @@ export default function PartnerClientsScreen() {
 
       {!loading && !error ? (
         <FlatList
-          data={clients}
+          data={filteredClients}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
             <View style={styles.itemWrap}>
@@ -90,7 +111,7 @@ export default function PartnerClientsScreen() {
           )}
           ListHeaderComponent={listHeader}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
-          ListEmptyComponent={<EmptyState title="لا يوجد عملاء شركاء" description="أي عميل بتوزيع ربح مشترك سيظهر هنا لعلي." />}
+          ListEmptyComponent={<EmptyState title="لا توجد نتائج" description="غيّر الفلتر لعرض عملاء شركاء آخرين." />}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadData(true); }} />}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
@@ -123,6 +144,19 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   noticeText: { flex: 1, color: colors.textMuted, textAlign: 'right', lineHeight: 21, fontWeight: '700', fontSize: 12 },
+  filterRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  filterHint: {
+    flex: 1,
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '800',
+    textAlign: 'right',
+  },
   metricGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10 },
   itemWrap: { gap: 6 },
   sourceText: { textAlign: 'right', color: colors.textMuted, fontSize: 12, fontWeight: '800', paddingHorizontal: 8 },
