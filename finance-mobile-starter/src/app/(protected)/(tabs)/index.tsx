@@ -80,6 +80,12 @@ export default function FinanceHomeScreen() {
     return { lateCount, upcomingCount, totalAmount };
   }, [collectionEntries]);
 
+  const totalRemainingFinancedCapital = useMemo(() => clients.reduce((sum, client) => {
+    const financedAmount = Number(client.summary?.financed_amount || 0);
+    const paidAmount = Number(client.summary?.paid_amount || 0);
+    return sum + Math.max(0, financedAmount - paidAmount);
+  }, 0), [clients]);
+
   const collectionPreview = useMemo(() => collectionEntries.slice(0, 4), [collectionEntries]);
   const topLateClients = useMemo(() => alertGroups.lateClients.slice(0, 2), [alertGroups.lateClients]);
   const topCourtClients = useMemo(() => alertGroups.courtClients.slice(0, 2), [alertGroups.courtClients]);
@@ -197,7 +203,7 @@ export default function FinanceHomeScreen() {
               <View style={styles.metricGrid}>
                 <MetricCard label="الدفعات الشهرية" value={formatCurrency(stats.monthly_income)} tone="info" />
                 <MetricCard label="الربح الشهري" value={formatCurrency(stats.monthly_profit)} tone="success" />
-                <MetricCard label="وعاء الزكاة" value={formatCurrency(stats.zakat_base)} />
+                <MetricCard label="رأس المال المتبقي" value={formatCurrency(totalRemainingFinancedCapital)} tone="warning" />
                 <MetricCard label="الزكاة + الصدقة" value={formatCurrency(stats.zakat + stats.sadaqa)} tone="warning" />
               </View>
             </AppCard>
