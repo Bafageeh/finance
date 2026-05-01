@@ -11,6 +11,7 @@ interface InstallmentCardProps {
   onPress?: () => void;
   onRecordPress?: () => void;
   onUndoPress?: () => void;
+  readOnly?: boolean;
 }
 
 function asMoney(value: number | null | undefined): number {
@@ -23,7 +24,7 @@ function stopAndRun(event: GestureResponderEvent, callback?: () => void) {
   callback?.();
 }
 
-export function InstallmentCard({ item, state, onPress, onRecordPress, onUndoPress }: InstallmentCardProps) {
+export function InstallmentCard({ item, state, onPress, onRecordPress, onUndoPress, readOnly = false }: InstallmentCardProps) {
   const [actionsOpen, setActionsOpen] = useState(false);
 
   const expectedAmount = asMoney(item.installment_amount ?? item.amount);
@@ -52,6 +53,10 @@ export function InstallmentCard({ item, state, onPress, onRecordPress, onUndoPre
   function handlePrimaryAction(event: GestureResponderEvent) {
     event.stopPropagation?.();
 
+    if (readOnly) {
+      return;
+    }
+
     if (hasRecordedPayment) {
       setActionsOpen((current) => !current);
       return;
@@ -62,6 +67,7 @@ export function InstallmentCard({ item, state, onPress, onRecordPress, onUndoPre
 
   function handleEditPayment(event: GestureResponderEvent) {
     stopAndRun(event, () => {
+      if (readOnly) return;
       setActionsOpen(false);
       (onRecordPress || onPress)?.();
     });
@@ -69,35 +75,41 @@ export function InstallmentCard({ item, state, onPress, onRecordPress, onUndoPre
 
   function handleCancelPayment(event: GestureResponderEvent) {
     stopAndRun(event, () => {
+      if (readOnly) return;
       setActionsOpen(false);
       onUndoPress?.();
     });
   }
 
+  const canInteract = !readOnly && Boolean(onPress);
+
   return (
     <Pressable
-      onPress={onPress}
+      onPress={readOnly ? undefined : onPress}
+      disabled={!canInteract}
       style={({ pressed }) => [
         styles.card,
         {
           backgroundColor: palette.background,
           borderColor: palette.borderColor,
-          opacity: pressed ? 0.96 : 1,
+          opacity: pressed && canInteract ? 0.96 : 1,
         },
       ]}
     >
       <View style={styles.rowTop}>
-        <View style={styles.actionWrap}>
-          <TouchableOpacity
-            accessibilityLabel={hasRecordedPayment ? 'تعديل الدفعة' : 'تسجيل دفعة'}
-            style={[styles.iconButton, hasRecordedPayment ? styles.editButton : styles.recordButton]}
-            onPress={handlePrimaryAction}
-            activeOpacity={0.82}
-          >
-            <Ionicons name={hasRecordedPayment ? 'create-outline' : 'checkmark-done-outline'} size={16} color={hasRecordedPayment ? colors.text : '#0f6e56'} />
-          </TouchableOpacity>
-          <Text style={styles.actionLabel}>{hasRecordedPayment ? 'تعديل' : 'دفع'}</Text>
-        </View>
+        {!readOnly ? (
+          <View style={styles.actionWrap}>
+            <TouchableOpacity
+              accessibilityLabel={hasRecordedPayment ? 'تعديل الدفعة' : 'تسجيل دفعة'}
+              style={[styles.iconButton, hasRecordedPayment ? styles.editButton : styles.recordButton]}
+              onPress={handlePrimaryAction}
+              activeOpacity={0.82}
+            >
+              <Ionicons name={hasRecordedPayment ? 'create-outline' : 'checkmark-done-outline'} size={16} color={hasRecordedPayment ? colors.text : '#0f6e56'} />
+            </TouchableOpacity>
+            <Text style={styles.actionLabel}>{hasRecordedPayment ? 'تعديل' : 'دفع'}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.mainInfo}>
           <View style={styles.titleRow}>
@@ -108,7 +120,7 @@ export function InstallmentCard({ item, state, onPress, onRecordPress, onUndoPre
 
             <View style={styles.titleColumn}>
               <View style={styles.titleLine}>
-                <Ionicons name="chevron-back" size={16} color={colors.textMuted} />
+                {!readOnly ? <Ionicons name="chevron-back" size={16} color={colors.textMuted} /> : null}
                 <Text style={styles.title}>القسط {item.month}</Text>
               </View>
 
@@ -128,7 +140,7 @@ export function InstallmentCard({ item, state, onPress, onRecordPress, onUndoPre
         </View>
       </View>
 
-      {actionsOpen && hasRecordedPayment ? (
+      {!readOnly && actionsOpen && hasRecordedPayment ? (
         <View style={styles.actionsPanel}>
           <TouchableOpacity style={[styles.panelButton, styles.panelEditButton]} onPress={handleEditPayment} activeOpacity={0.86}>
             <Ionicons name="create-outline" size={15} color={colors.text} />
