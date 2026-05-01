@@ -57,7 +57,6 @@ jobs:
           REPO_URL="https://github.com/Bafageeh/finance.git"
           BASE_DIR="/mnt/home-storage/home/pmsa/apps"
           PRIMARY_APP="$BASE_DIR/finance"
-          SARA_APP="$BASE_DIR/finance-sara"
 
           default_api_url() {
             local label="$1"
@@ -196,7 +195,6 @@ jobs:
           }
 
           update_instance "$PRIMARY_APP" "finance"
-          update_instance "$SARA_APP" "finance-sara"
 
           /usr/local/cpanel/scripts/restartsrv_apache_php_fpm || true
           /usr/local/cpanel/scripts/restartsrv_httpd || true
