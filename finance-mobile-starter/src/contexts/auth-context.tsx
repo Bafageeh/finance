@@ -50,6 +50,10 @@ async function saveStoredSession(session: AuthSession): Promise<void> {
   await SecureStore.setItemAsync(SESSION_STORAGE_KEY, JSON.stringify(session));
 }
 
+async function deleteStoredSession(): Promise<void> {
+  await SecureStore.deleteItemAsync(SESSION_STORAGE_KEY);
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,7 +92,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
-  async function activateSession(nextSession: AuthSession) {
+  async function activateSession(nextSession: AuthSession, options: { requireProfile?: boolean } = {}) {
     setApiToken(nextSession.token);
 
     try {
@@ -100,7 +104,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setSession(hydratedSession);
       await saveStoredSession(hydratedSession);
       setHasSavedSession(true);
-    } catch {
+    } catch (error) {
+      if (options.requireProfile) {
+        setSession(null);
+        setApiToken(null);
+        await deleteStoredSession();
+        setHasSavedSession(false);
+        throw new Error('انتهت الجلسة المحفوظة. سجّل الدخول مرة واحدة باسم المستخدم وكلمة المرور ليتم حفظ جلسة جديدة.');
+      }
+
       setSession(nextSession);
       await saveStoredSession(nextSession);
       setHasSavedSession(true);
@@ -130,7 +142,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       throw new Error('لم يتم تأكيد البصمة.');
     }
 
-    await activateSession(storedSession);
+    await activateSession(storedSession, { requireProfile: true });
   }
 
   async function refreshProfile() {
@@ -147,20 +159,26 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }
 
   async function signOut() {
-    try {
-      await signOutRemote();
-    } finally {
-      setSession(null);
-      setApiToken(null);
-      setHasSavedSession(Boolean(await readStoredSession()));
-    }
+    // هذا قفل محلي فقط: نخرج من الشاشة الحالية ونُبقي الجلسة محفوظة على الجهاز
+    // حتى يكون الدخول القادم بالبصمة بدل اسم المستخدم وكلمة المرور.
+    setSession(null);
+    setApiToken(null);
+    setHasSavedSession(Boolean(await readStoredSession()));
   }
 
   async function resetSavedSession() {
-    await SecureStore.deleteItemAsync(SESSION_STORAGE_KEY);
-    setSession(null);
-    setApiToken(null);
-    setHasSavedSession(false);
+    try {
+      if (session?.token) {
+        await signOutRemote();
+      }
+    } catch {
+      // حذف الجلسة من الجهاز أهم من نجاح إلغاء التوكن في الخادم.
+    } finally {
+      await deleteStoredSession();
+      setSession(null);
+      setApiToken(null);
+      setHasSavedSession(false);
+    }
   }
 
   const value = useMemo<AuthContextValue>(
