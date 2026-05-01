@@ -88,6 +88,33 @@ function pickEnvelopeData<T>(raw: any): T {
   return (raw?.data ?? raw) as T;
 }
 
+function normalizeClientCapital(client: Client): Client {
+  if (!client?.summary) {
+    return client;
+  }
+
+  const remainingPrincipal = Number(client.summary.remaining_principal);
+  const paidAmount = Number(client.summary.paid_amount);
+
+  if (!Number.isFinite(remainingPrincipal) || !Number.isFinite(paidAmount)) {
+    return client;
+  }
+
+  return {
+    ...client,
+    summary: {
+      ...client.summary,
+      // نجعل أي شاشة قديمة تعتمد على financed_amount - paid_amount تعرض نفس رقم الخادم.
+      // المصدر المعتمد هو remaining_principal القادم من Laravel، وهو نفس الرقم الظاهر في الويب.
+      financed_amount: remainingPrincipal + paidAmount,
+    },
+  };
+}
+
+function normalizeClientList(clients: Client[]): Client[] {
+  return clients.map((client) => normalizeClientCapital(client));
+}
+
 function pickUser(raw: any): AuthUser {
   const source = raw?.user || raw?.data?.user || raw?.data || raw || {};
   return {
@@ -169,19 +196,19 @@ export async function signOutRemote(): Promise<void> {
 export async function getClients(status: ClientFilter = 'all'): Promise<Client[]> {
   if (!USE_MOCKS) {
     const response = await request<ApiEnvelope<Client[]> | Client[]>(`/clients?status=${status}`);
-    return pickEnvelopeData<Client[]>(response);
+    return normalizeClientList(pickEnvelopeData<Client[]>(response));
   }
 
-  return getMockClients(status === 'late' ? 'all' : status);
+  return normalizeClientList(getMockClients(status === 'late' ? 'all' : status));
 }
 
 export async function getClient(id: number | string): Promise<Client> {
   if (!USE_MOCKS) {
     const response = await request<ApiEnvelope<Client> | Client>(`/clients/${id}`);
-    return pickEnvelopeData<Client>(response);
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
   }
 
-  return getMockClient(id);
+  return normalizeClientCapital(getMockClient(id));
 }
 
 export async function createClient(payload: CreateClientPayload): Promise<Client> {
@@ -190,10 +217,10 @@ export async function createClient(payload: CreateClientPayload): Promise<Client
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return pickEnvelopeData<Client>(response);
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
   }
 
-  return createMockClient(payload);
+  return normalizeClientCapital(createMockClient(payload));
 }
 
 export async function updateClient(id: number | string, payload: UpdateClientPayload): Promise<Client> {
@@ -202,10 +229,10 @@ export async function updateClient(id: number | string, payload: UpdateClientPay
       method: 'PUT',
       body: JSON.stringify(payload),
     });
-    return pickEnvelopeData<Client>(response);
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
   }
 
-  return updateMockClient(id, payload);
+  return normalizeClientCapital(updateMockClient(id, payload));
 }
 
 export async function deleteClient(id: number | string): Promise<void> {
