@@ -14,7 +14,7 @@ jobs:
   deploy:
     name: Deploy to cPanel server
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     env:
       SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -58,6 +58,84 @@ jobs:
           BASE_DIR="/mnt/home-storage/home/pmsa/apps"
           PRIMARY_APP="$BASE_DIR/finance"
           SARA_APP="$BASE_DIR/finance-sara"
+
+          default_api_url() {
+            local label="$1"
+            if [ "$label" = "finance-sara" ]; then
+              echo "https://sara.pm.sa/api/v1"
+            else
+              echo "https://finance.pm.sa/api/v1"
+            fi
+          }
+
+          write_public_htaccess() {
+            local public_dir="$1"
+
+            cat > "$public_dir/.htaccess" <<'HTACCESS'
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    DirectoryIndex index.html index.php
+
+    RewriteEngine On
+
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    RewriteCond %{REQUEST_URI} ^/api(/|$) [NC]
+    RewriteRule ^ index.php [L]
+
+    RewriteCond %{REQUEST_FILENAME} -d [OR]
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    RewriteRule ^ index.html [L]
+</IfModule>
+HTACCESS
+          }
+
+          build_web_frontend() {
+            local app_dir="$1"
+            local label="$2"
+            local mobile_dir="$app_dir/finance-mobile-starter"
+            local public_dir="$app_dir/finance-api/public"
+            local api_url
+            api_url="$(default_api_url "$label")"
+
+            echo "=== Building web frontend for $label ==="
+
+            if [ ! -d "$mobile_dir" ]; then
+              echo "Missing mobile frontend directory: $mobile_dir"
+              exit 1
+            fi
+
+            cat > "$mobile_dir/.env" <<EOF
+EXPO_PUBLIC_API_URL=$api_url
+EXPO_PUBLIC_API_BASE_URL=$api_url
+API_URL=$api_url
+EOF
+
+            chown -R pmsa:pmsa "$mobile_dir"
+
+            su -s /bin/bash pmsa -c "
+              cd '$mobile_dir'
+              npm install
+              rm -rf dist
+              CI=1 npx expo export --platform web --output-dir dist
+            "
+
+            if [ ! -f "$mobile_dir/dist/index.html" ]; then
+              echo "Web export did not produce index.html"
+              exit 1
+            fi
+
+            mkdir -p "$public_dir"
+            cp -a "$mobile_dir/dist/." "$public_dir/"
+            write_public_htaccess "$public_dir"
+            chown -R pmsa:pmsa "$public_dir"
+          }
 
           update_instance() {
             local app_dir="$1"
@@ -115,6 +193,8 @@ jobs:
               php artisan config:cache
             "
 
+            build_web_frontend "$app_dir" "$label"
+
             chown -R pmsa:pmsa "$app_dir"
             chmod -R 775 "$app_dir/finance-api/storage" "$app_dir/finance-api/bootstrap/cache"
           }
@@ -126,4 +206,6 @@ jobs:
           /usr/local/cpanel/scripts/restartsrv_httpd || true
 
           echo "=== Finance deployment completed successfully ==="
+          echo "Original web app: https://finance.pm.sa"
+          echo "Sara web app: https://sara.pm.sa"
           REMOTE
