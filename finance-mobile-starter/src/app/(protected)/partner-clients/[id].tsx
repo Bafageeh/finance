@@ -124,7 +124,7 @@ export default function PartnerClientDetailsScreen() {
                       key={item.period_key}
                       item={item}
                       state={state}
-                      onPress={() => {}}
+                      readOnly
                     />
                   );
                 })
