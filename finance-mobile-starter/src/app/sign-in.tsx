@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard } from '@/components/AppCard';
 import { InfoPill } from '@/components/InfoPill';
@@ -16,13 +16,52 @@ const DEMO_ACCOUNTS = [
 ];
 
 export default function SignInScreen() {
-  const { signIn, isAuthenticated } = useSession();
+  const {
+    signIn,
+    signInWithBiometric,
+    resetSavedSession,
+    isAuthenticated,
+    hasSavedSession,
+    biometricAvailable,
+    biometricLabel,
+  } = useSession();
   const [login, setLogin] = useState(apiConfig.useMocks ? 'admin' : '');
   const [password, setPassword] = useState(apiConfig.useMocks ? '123456' : '');
   const [submitting, setSubmitting] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [biometricAttempted, setBiometricAttempted] = useState(false);
+
+  const canUseBiometric = hasSavedSession && biometricAvailable;
+  const shouldShowPasswordForm = !canUseBiometric || showPasswordForm;
+
+  useEffect(() => {
+    if (!canUseBiometric || biometricAttempted || isAuthenticated) return;
+    setBiometricAttempted(true);
+    void handleBiometricLogin(true);
+  }, [canUseBiometric, biometricAttempted, isAuthenticated]);
 
   if (isAuthenticated) {
     return <Redirect href="/(protected)/(tabs)" />;
+  }
+
+  async function handleBiometricLogin(silent = false) {
+    try {
+      setSubmitting(true);
+      await signInWithBiometric();
+    } catch (error) {
+      if (!silent) {
+        Alert.alert('تعذر الدخول بالبصمة', error instanceof Error ? error.message : 'حدث خطأ غير متوقع.');
+      }
+      setShowPasswordForm(true);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleResetSavedSession() {
+    await resetSavedSession();
+    setShowPasswordForm(true);
+    setBiometricAttempted(true);
   }
 
   async function handleSubmit() {
@@ -41,12 +80,11 @@ export default function SignInScreen() {
     }
   }
 
-
   return (
     <Screen
       scrollable={false}
       title="تسجيل الدخول"
-      subtitle={apiConfig.useMocks ? 'وضع تجريبي سريع للتطوير.' : 'أدخل بيانات حساب Laravel للوصول إلى النظام.'}
+      subtitle={canUseBiometric && !shouldShowPasswordForm ? `الدخول السريع باستخدام ${biometricLabel}.` : 'أدخل بياناتك أول مرة فقط، وبعدها يتم الدخول بالبصمة.'}
     >
       <View style={styles.container}>
         <View style={styles.heroCard}>
@@ -56,91 +94,108 @@ export default function SignInScreen() {
             </View>
             <View style={styles.heroPills}>
               <InfoPill compact tone={apiConfig.useMocks ? 'warning' : 'success'} label="الوضع" value={apiConfig.useMocks ? 'تجريبي' : 'مباشر'} />
-              <InfoPill compact tone="info" label="الواجهة" value="Expo Go" />
+              <InfoPill compact tone="info" label="الدخول" value={canUseBiometric ? biometricLabel : 'كلمة مرور'} />
             </View>
           </View>
 
           <Text style={styles.heroTitle}>إدارة التمويل</Text>
-          <Text style={styles.heroSub}>{apiConfig.useMocks ? 'نسخة جوال عملية لمتابعة العملاء والأقساط والتحصيل ببيانات تجريبية.' : 'تسجيل دخول آمن للربط المباشر مع Laravel API بدون فتح التطبيق تلقائيًا.'}</Text>
-
-          <View style={styles.heroStatsRow}>
-            <View style={styles.heroStatBox}>
-              <Text style={styles.heroStatValue}>جاهز</Text>
-              <Text style={styles.heroStatLabel}>التشغيل</Text>
-            </View>
-            <View style={styles.heroStatBox}>
-              <Text style={styles.heroStatValue}>{apiConfig.useMocks ? 'Mock' : 'API'}</Text>
-              <Text style={styles.heroStatLabel}>المصدر</Text>
-            </View>
-            <View style={styles.heroStatBox}>
-              <Text style={styles.heroStatValue}>محمول</Text>
-              <Text style={styles.heroStatLabel}>التجربة</Text>
-            </View>
-          </View>
+          <Text style={styles.heroSub}>{canUseBiometric ? 'جلسة محفوظة. استخدم البصمة للدخول السريع حتى بعد إغلاق التطبيق أو تسجيل الخروج.' : 'سجّل الدخول مرة واحدة، وسيتم حفظ الجلسة آمنًا لاستخدام البصمة في المرات القادمة.'}</Text>
         </View>
 
-        <AppCard title="بيانات الدخول" style={styles.formCard}>
-          <LabeledInput
-            label="اسم المستخدم أو البريد"
-            value={login}
-            onChangeText={setLogin}
-            autoCapitalize="none"
-            placeholder="admin أو admin@pm.sa"
-          />
-          <LabeledInput
-            label="كلمة المرور"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            placeholder="123456"
-          />
+        {canUseBiometric && !shouldShowPasswordForm ? (
+          <AppCard title="الدخول السريع" style={styles.formCard}>
+            <TouchableOpacity
+              style={[styles.primaryButton, submitting && styles.buttonDisabled]}
+              onPress={() => void handleBiometricLogin(false)}
+              disabled={submitting}
+              activeOpacity={0.92}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="finger-print-outline" size={20} color="#fff" />
+                  <Text style={styles.primaryButtonText}>الدخول باستخدام {biometricLabel}</Text>
+                </>
+              )}
+            </TouchableOpacity>
 
-          {apiConfig.useMocks ? (
-            <View style={styles.quickAccountsRow}>
-              {DEMO_ACCOUNTS.map((account) => (
-                <Pressable
-                  key={account.value}
-                  onPress={() => {
-                    setLogin(account.value);
-                    setPassword('123456');
-                  }}
-                  style={styles.quickAccountChip}
-                >
-                  <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
-                  <Text style={styles.quickAccountText}>{account.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowPasswordForm(true)} activeOpacity={0.9}>
+              <Text style={styles.secondaryButtonText}>استخدام اسم المستخدم وكلمة المرور</Text>
+            </TouchableOpacity>
+          </AppCard>
+        ) : null}
 
-          <TouchableOpacity
-            style={[styles.primaryButton, submitting && styles.buttonDisabled]}
-            onPress={() => void handleSubmit()}
-            disabled={submitting}
-            activeOpacity={0.92}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="log-in-outline" size={18} color="#fff" />
-                <Text style={styles.primaryButtonText}>دخول</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </AppCard>
+        {shouldShowPasswordForm ? (
+          <AppCard title="بيانات الدخول" style={styles.formCard}>
+            <LabeledInput
+              label="اسم المستخدم أو البريد"
+              value={login}
+              onChangeText={setLogin}
+              autoCapitalize="none"
+              placeholder="admin أو admin@pm.sa"
+            />
+            <LabeledInput
+              label="كلمة المرور"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholder="123456"
+            />
+
+            {apiConfig.useMocks ? (
+              <View style={styles.quickAccountsRow}>
+                {DEMO_ACCOUNTS.map((account) => (
+                  <Pressable
+                    key={account.value}
+                    onPress={() => {
+                      setLogin(account.value);
+                      setPassword('123456');
+                    }}
+                    style={styles.quickAccountChip}
+                  >
+                    <Ionicons name="sparkles-outline" size={14} color={colors.primary} />
+                    <Text style={styles.quickAccountText}>{account.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.primaryButton, submitting && styles.buttonDisabled]}
+              onPress={() => void handleSubmit()}
+              disabled={submitting}
+              activeOpacity={0.92}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="log-in-outline" size={18} color="#fff" />
+                  <Text style={styles.primaryButtonText}>دخول</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {hasSavedSession ? (
+              <TouchableOpacity style={styles.dangerTextButton} onPress={() => void handleResetSavedSession()}>
+                <Text style={styles.dangerText}>نسيان الجلسة المحفوظة</Text>
+              </TouchableOpacity>
+            ) : null}
+          </AppCard>
+        ) : null}
 
         <AppCard title="حالة الجلسة" style={styles.infoCard}>
           <View style={styles.stateGrid}>
             <InfoPill compact tone="default" label="المصدر" value={apiConfig.useMocks ? 'تجريبي' : 'Laravel API'} />
-            <InfoPill compact tone="success" label="Expo Go" value="متوافق" />
+            <InfoPill compact tone={canUseBiometric ? 'success' : 'warning'} label="البصمة" value={canUseBiometric ? 'مفعلة' : 'بعد أول دخول'} />
           </View>
 
           <View style={styles.infoRow}>
             <Text numberOfLines={1} style={styles.infoValue}>{apiConfig.baseUrl}</Text>
             <Text style={styles.infoLabel}>عنوان الـ API</Text>
           </View>
-          <Text style={styles.helperText}>{apiConfig.useMocks ? 'الوضع التجريبي يستخدم بيانات دخول ثابتة لتسريع التطوير.' : 'تم إيقاف الدخول التلقائي؛ كل طلب مباشر يحتاج رمز دخول صادر من الخادم.'}</Text>
+          <Text style={styles.helperText}>بعد أول تسجيل دخول ناجح سيتم حفظ الجلسة، وفي المرات القادمة تظهر البصمة فقط.</Text>
         </AppCard>
       </View>
     </Screen>
@@ -193,32 +248,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.82)',
     textAlign: 'right',
   },
-  heroStatsRow: {
-    flexDirection: 'row-reverse',
-    gap: 10,
-  },
-  heroStatBox: {
-    flex: 1,
-    borderRadius: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    gap: 4,
-  },
-  heroStatValue: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#fff',
-    textAlign: 'center',
-  },
-  heroStatLabel: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.72)',
-    textAlign: 'center',
-    fontWeight: '700',
-  },
   formCard: {
     marginBottom: 0,
   },
@@ -255,6 +284,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     gap: 8,
   },
+  secondaryButton: {
+    minHeight: 46,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryButtonText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
   primaryButtonText: {
     color: '#fff',
     fontSize: 16,
@@ -262,6 +305,15 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.7,
+  },
+  dangerTextButton: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  dangerText: {
+    color: colors.danger,
+    fontWeight: '800',
+    fontSize: 12,
   },
   stateGrid: {
     flexDirection: 'row-reverse',
@@ -290,47 +342,5 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: colors.textMuted,
     textAlign: 'right',
-  },
-  liveHero: {
-    borderRadius: 28,
-    padding: 18,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 14,
-  },
-  liveHeroBadge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 6,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: colors.successSoft,
-  },
-  liveHeroBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: colors.success,
-  },
-  liveHeroTitle: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: colors.text,
-    textAlign: 'right',
-  },
-  liveHeroSub: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: colors.textMuted,
-    textAlign: 'right',
-  },
-  livePillsRow: {
-    flexDirection: 'row-reverse',
-    gap: 8,
-  },
-  liveCard: {
-    marginBottom: 0,
   },
 });
