@@ -4,3 +4,7 @@ Triggered at: 2026-04-30
 Purpose: apply latest code changes to both finance and finance-sara through GitHub Actions.
 
 Manual deploy retry after adding SSH_PRIVATE_KEY and SSH_PORT secrets.
+
+Manual deploy retry for web domain mapping:
+finance.pm.sa uses the original finance instance.
+sara.pm.sa uses the finance-sara instance.
