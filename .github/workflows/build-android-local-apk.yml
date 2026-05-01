@@ -68,17 +68,23 @@ jobs:
       - name: Generate native Android project
         run: npx expo prebuild --platform android --clean --non-interactive
 
-      - name: Build debug APK
+      - name: Build release APK with bundled JS
         run: |
           cd android
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleRelease --no-daemon
 
       - name: Prepare APK artifact
         shell: bash
         run: |
           mkdir -p ../artifacts
-          cp android/app/build/outputs/apk/debug/app-debug.apk ../artifacts/finance.apk
+          APK_PATH="$(find android/app/build/outputs/apk/release -name '*.apk' | head -n 1)"
+          if [ -z "$APK_PATH" ]; then
+            echo "No release APK was generated."
+            find android/app/build/outputs -type f || true
+            exit 1
+          fi
+          cp "$APK_PATH" ../artifacts/finance.apk
           ls -lh ../artifacts/finance.apk
 
       - name: Upload APK artifact
