@@ -21,7 +21,25 @@ import {
   updateMockClient,
 } from '@/services/mock-data';
 
-const API_BASE = (process.env.EXPO_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api/v1').replace(/\/$/, '');
+function resolveApiBase(): string {
+  const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+
+  if (host === 'sara.pm.sa' || host.endsWith('.sara.pm.sa')) {
+    return 'https://sara.pm.sa/api/v1';
+  }
+
+  if (host === 'finance.pm.sa' || host.endsWith('.finance.pm.sa')) {
+    return 'https://finance.pm.sa/api/v1';
+  }
+
+  return (
+    process.env.EXPO_PUBLIC_API_BASE_URL
+    || process.env.EXPO_PUBLIC_API_URL
+    || 'http://127.0.0.1:8000/api/v1'
+  );
+}
+
+const API_BASE = resolveApiBase().replace(/\/$/, '');
 const MOCK_FLAG = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
 const HAS_REAL_API_BASE = /^https?:\/\//i.test(API_BASE) && !/(example\.com|127\.0\.0\.1|localhost)/i.test(API_BASE);
 const USE_MOCKS = MOCK_FLAG && !HAS_REAL_API_BASE;
