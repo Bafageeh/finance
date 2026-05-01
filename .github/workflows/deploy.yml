@@ -70,30 +70,29 @@ jobs:
 
           write_public_htaccess() {
             local public_dir="$1"
-
-            cat > "$public_dir/.htaccess" <<'HTACCESS'
-<IfModule mod_rewrite.c>
-    <IfModule mod_negotiation.c>
-        Options -MultiViews -Indexes
-    </IfModule>
-
-    DirectoryIndex index.html index.php
-
-    RewriteEngine On
-
-    RewriteCond %{HTTP:Authorization} .
-    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
-
-    RewriteCond %{REQUEST_URI} ^/api(/|$) [NC]
-    RewriteRule ^ index.php [L]
-
-    RewriteCond %{REQUEST_FILENAME} -d [OR]
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule ^ - [L]
-
-    RewriteRule ^ index.html [L]
-</IfModule>
-HTACCESS
+            printf '%s\n' \
+              '<IfModule mod_rewrite.c>' \
+              '    <IfModule mod_negotiation.c>' \
+              '        Options -MultiViews -Indexes' \
+              '    </IfModule>' \
+              '' \
+              '    DirectoryIndex index.html index.php' \
+              '' \
+              '    RewriteEngine On' \
+              '' \
+              '    RewriteCond %{HTTP:Authorization} .' \
+              '    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]' \
+              '' \
+              '    RewriteCond %{REQUEST_URI} ^/api(/|$) [NC]' \
+              '    RewriteRule ^ index.php [L]' \
+              '' \
+              '    RewriteCond %{REQUEST_FILENAME} -d [OR]' \
+              '    RewriteCond %{REQUEST_FILENAME} -f' \
+              '    RewriteRule ^ - [L]' \
+              '' \
+              '    RewriteRule ^ index.html [L]' \
+              '</IfModule>' \
+              > "$public_dir/.htaccess"
           }
 
           build_web_frontend() {
@@ -111,11 +110,8 @@ HTACCESS
               exit 1
             fi
 
-            cat > "$mobile_dir/.env" <<EOF
-EXPO_PUBLIC_API_URL=$api_url
-EXPO_PUBLIC_API_BASE_URL=$api_url
-API_URL=$api_url
-EOF
+            printf 'EXPO_PUBLIC_API_URL=%s\nEXPO_PUBLIC_API_BASE_URL=%s\nAPI_URL=%s\n' \
+              "$api_url" "$api_url" "$api_url" > "$mobile_dir/.env"
 
             chown -R pmsa:pmsa "$mobile_dir"
 
