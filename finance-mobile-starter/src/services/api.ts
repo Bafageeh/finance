@@ -122,8 +122,6 @@ function normalizeClientCapital(client: Client): Client {
     ...client,
     summary: {
       ...client.summary,
-      // نجعل أي شاشة قديمة تعتمد على financed_amount - paid_amount تعرض نفس رقم الخادم.
-      // المصدر المعتمد هو remaining_principal القادم من Laravel، وهو نفس الرقم الظاهر في الويب.
       financed_amount: remainingPrincipal + paidAmount,
     },
   };
@@ -137,6 +135,9 @@ function pickUser(raw: any): AuthUser {
   const source = raw?.user || raw?.data?.user || raw?.data || raw || {};
   return {
     id: source.id ?? source.user_id ?? 1,
+    account_id: source.account_id ?? null,
+    account_name: source.account_name ?? null,
+    account_slug: source.account_slug ?? null,
     name: source.name ?? source.full_name ?? source.username ?? 'مستخدم النظام',
     email: source.email ?? null,
     phone: source.phone ?? null,
@@ -218,6 +219,15 @@ export async function getClients(status: ClientFilter = 'all'): Promise<Client[]
   }
 
   return normalizeClientList(getMockClients(status === 'late' ? 'all' : status));
+}
+
+export async function getPartnerClients(): Promise<Client[]> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client[]> | Client[]>('/partner-clients');
+    return normalizeClientList(pickEnvelopeData<Client[]>(response));
+  }
+
+  return normalizeClientList(getMockClients('all').filter((client) => client.profit_share === 'shared'));
 }
 
 export async function getClient(id: number | string): Promise<Client> {
