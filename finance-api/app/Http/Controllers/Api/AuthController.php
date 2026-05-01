@@ -22,6 +22,7 @@ class AuthController extends Controller
         $login = trim((string) $credentials['login']);
 
         $user = User::query()
+            ->with('account')
             ->where('email', $login)
             ->orWhere('name', $login)
             ->first();
@@ -47,7 +48,7 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json([
-            'data' => $this->formatUser($request->user()),
+            'data' => $this->formatUser($request->user()?->loadMissing('account')),
         ]);
     }
 
@@ -68,6 +69,9 @@ class AuthController extends Controller
     {
         return [
             'id' => $user?->id,
+            'account_id' => $user?->account_id,
+            'account_name' => $user?->account?->name,
+            'account_slug' => $user?->account?->slug,
             'name' => $user?->name ?? 'مستخدم النظام',
             'email' => $user?->email,
             'phone' => null,
