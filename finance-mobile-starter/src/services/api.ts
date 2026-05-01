@@ -230,6 +230,15 @@ export async function getPartnerClients(): Promise<Client[]> {
   return normalizeClientList(getMockClients('all').filter((client) => client.profit_share === 'shared'));
 }
 
+export async function getPartnerClient(id: number | string): Promise<Client> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client> | Client>(`/partner-clients/${id}`);
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
+  }
+
+  return normalizeClientCapital(getMockClient(id));
+}
+
 export async function getClient(id: number | string): Promise<Client> {
   if (!USE_MOCKS) {
     const response = await request<ApiEnvelope<Client> | Client>(`/clients/${id}`);
