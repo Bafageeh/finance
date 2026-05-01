@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 class PersonalAccessToken extends Model
 {
     protected $fillable = [
+        'account_id',
         'user_id',
         'name',
         'token_hash',
@@ -21,9 +22,15 @@ class PersonalAccessToken extends Model
     ];
 
     protected $casts = [
+        'account_id' => 'integer',
         'last_used_at' => 'datetime',
         'expires_at' => 'datetime',
     ];
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
 
     public function user(): BelongsTo
     {
@@ -43,6 +50,7 @@ class PersonalAccessToken extends Model
         $plainToken = Str::random(80);
 
         $token = self::create([
+            'account_id' => $user->account_id,
             'user_id' => $user->id,
             'name' => $name,
             'token_hash' => hash('sha256', $plainToken),
