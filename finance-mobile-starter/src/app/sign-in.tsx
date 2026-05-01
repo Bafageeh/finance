@@ -32,7 +32,7 @@ export default function SignInScreen() {
   const [biometricAttempted, setBiometricAttempted] = useState(false);
 
   const canUseBiometric = hasSavedSession && biometricAvailable;
-  const shouldShowPasswordForm = !canUseBiometric || showPasswordForm;
+  const shouldShowPasswordForm = !hasSavedSession || showPasswordForm;
 
   useEffect(() => {
     if (!canUseBiometric || biometricAttempted || isAuthenticated) return;
@@ -83,31 +83,31 @@ export default function SignInScreen() {
   return (
     <Screen
       scrollable={false}
-      title="تسجيل الدخول"
-      subtitle={canUseBiometric && !shouldShowPasswordForm ? `الدخول السريع باستخدام ${biometricLabel}.` : 'أدخل بياناتك أول مرة فقط، وبعدها يتم الدخول بالبصمة.'}
+      title={hasSavedSession ? 'الدخول بالبصمة' : 'تسجيل الدخول'}
+      subtitle={hasSavedSession ? `تم حفظ الحساب على هذا الجهاز. الدخول الآن باستخدام ${biometricLabel}.` : 'أدخل بياناتك أول مرة فقط، وبعدها يتم الدخول بالبصمة.'}
     >
       <View style={styles.container}>
         <View style={styles.heroCard}>
           <View style={styles.heroTopRow}>
             <View style={styles.heroIconWrap}>
-              <Ionicons name="wallet-outline" size={24} color="#fff" />
+              <Ionicons name={hasSavedSession ? 'finger-print-outline' : 'wallet-outline'} size={24} color="#fff" />
             </View>
             <View style={styles.heroPills}>
               <InfoPill compact tone={apiConfig.useMocks ? 'warning' : 'success'} label="الوضع" value={apiConfig.useMocks ? 'تجريبي' : 'مباشر'} />
-              <InfoPill compact tone="info" label="الدخول" value={canUseBiometric ? biometricLabel : 'كلمة مرور'} />
+              <InfoPill compact tone={hasSavedSession ? 'success' : 'info'} label="الدخول" value={hasSavedSession ? biometricLabel : 'أول مرة'} />
             </View>
           </View>
 
           <Text style={styles.heroTitle}>إدارة التمويل</Text>
-          <Text style={styles.heroSub}>{canUseBiometric ? 'جلسة محفوظة. استخدم البصمة للدخول السريع حتى بعد إغلاق التطبيق أو تسجيل الخروج.' : 'سجّل الدخول مرة واحدة، وسيتم حفظ الجلسة آمنًا لاستخدام البصمة في المرات القادمة.'}</Text>
+          <Text style={styles.heroSub}>{hasSavedSession ? 'جلسة محفوظة على هذا الجهاز. استخدم البصمة للدخول السريع، أو اختر نسيان الجلسة لتسجيل دخول مستخدم آخر.' : 'سجّل الدخول مرة واحدة، وسيتم حفظ الجلسة آمنًا لاستخدام البصمة في المرات القادمة.'}</Text>
         </View>
 
-        {canUseBiometric && !shouldShowPasswordForm ? (
+        {hasSavedSession && !shouldShowPasswordForm ? (
           <AppCard title="الدخول السريع" style={styles.formCard}>
             <TouchableOpacity
               style={[styles.primaryButton, submitting && styles.buttonDisabled]}
               onPress={() => void handleBiometricLogin(false)}
-              disabled={submitting}
+              disabled={submitting || !biometricAvailable}
               activeOpacity={0.92}
             >
               {submitting ? (
@@ -120,8 +120,12 @@ export default function SignInScreen() {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowPasswordForm(true)} activeOpacity={0.9}>
-              <Text style={styles.secondaryButtonText}>استخدام اسم المستخدم وكلمة المرور</Text>
+            {!biometricAvailable ? (
+              <Text style={styles.helperText}>فعّل البصمة أو رمز قفل الجهاز من إعدادات الجوال حتى يتم الدخول السريع.</Text>
+            ) : null}
+
+            <TouchableOpacity style={styles.dangerTextButton} onPress={() => void handleResetSavedSession()}>
+              <Text style={styles.dangerText}>نسيان الجلسة وتسجيل دخول مختلف</Text>
             </TouchableOpacity>
           </AppCard>
         ) : null}
@@ -133,7 +137,7 @@ export default function SignInScreen() {
               value={login}
               onChangeText={setLogin}
               autoCapitalize="none"
-              placeholder="admin أو admin@pm.sa"
+              placeholder="admin@pm.sa"
             />
             <LabeledInput
               label="كلمة المرور"
@@ -172,14 +176,14 @@ export default function SignInScreen() {
               ) : (
                 <>
                   <Ionicons name="log-in-outline" size={18} color="#fff" />
-                  <Text style={styles.primaryButtonText}>دخول</Text>
+                  <Text style={styles.primaryButtonText}>دخول وحفظ الجلسة</Text>
                 </>
               )}
             </TouchableOpacity>
 
             {hasSavedSession ? (
-              <TouchableOpacity style={styles.dangerTextButton} onPress={() => void handleResetSavedSession()}>
-                <Text style={styles.dangerText}>نسيان الجلسة المحفوظة</Text>
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowPasswordForm(false)} activeOpacity={0.9}>
+                <Text style={styles.secondaryButtonText}>الرجوع للدخول بالبصمة</Text>
               </TouchableOpacity>
             ) : null}
           </AppCard>
@@ -188,14 +192,14 @@ export default function SignInScreen() {
         <AppCard title="حالة الجلسة" style={styles.infoCard}>
           <View style={styles.stateGrid}>
             <InfoPill compact tone="default" label="المصدر" value={apiConfig.useMocks ? 'تجريبي' : 'Laravel API'} />
-            <InfoPill compact tone={canUseBiometric ? 'success' : 'warning'} label="البصمة" value={canUseBiometric ? 'مفعلة' : 'بعد أول دخول'} />
+            <InfoPill compact tone={hasSavedSession ? 'success' : 'warning'} label="الحفظ" value={hasSavedSession ? 'محفوظة' : 'بعد أول دخول'} />
           </View>
 
           <View style={styles.infoRow}>
             <Text numberOfLines={1} style={styles.infoValue}>{apiConfig.baseUrl}</Text>
             <Text style={styles.infoLabel}>عنوان الـ API</Text>
           </View>
-          <Text style={styles.helperText}>بعد أول تسجيل دخول ناجح سيتم حفظ الجلسة، وفي المرات القادمة تظهر البصمة فقط.</Text>
+          <Text style={styles.helperText}>بعد أول تسجيل دخول ناجح يتم حفظ الجلسة في الجهاز، وفي المرات القادمة تظهر البصمة فقط. لتغيير المستخدم استخدم نسيان الجلسة.</Text>
         </AppCard>
       </View>
     </Screen>
@@ -308,7 +312,7 @@ const styles = StyleSheet.create({
   },
   dangerTextButton: {
     alignItems: 'center',
-    paddingVertical: 4,
+    paddingVertical: 8,
   },
   dangerText: {
     color: colors.danger,
