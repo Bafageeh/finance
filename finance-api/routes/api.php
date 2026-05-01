@@ -20,6 +20,7 @@ Route::prefix('v1')->group(function () {
 
         Route::get('stats', [ClientController::class, 'stats']);
         Route::get('partner-clients', [PartnerClientController::class, 'index']);
+        Route::get('partner-clients/{client}', [PartnerClientController::class, 'show']);
         Route::apiResource('clients', ClientController::class);
         Route::post('clients/{client}/pay', [ClientController::class, 'recordPayment']);
         Route::delete('clients/{client}/pay/{periodKey}', [ClientController::class, 'removePayment']);
