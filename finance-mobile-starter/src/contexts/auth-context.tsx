@@ -1,52 +1,149 @@
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { getProfile, setApiToken, signIn as apiSignIn, signOutRemote } from '@/services/api';
 import { AuthSession, LoginPayload } from '@/types/auth';
+
+const SESSION_STORAGE_KEY = 'finance.auth.session.v1';
 
 interface AuthContextValue {
   session: AuthSession | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   isGuestSession: boolean;
+  hasSavedSession: boolean;
+  biometricAvailable: boolean;
+  biometricLabel: string;
   signIn: (payload: LoginPayload) => Promise<void>;
+  signInWithBiometric: () => Promise<void>;
   signOut: () => Promise<void>;
+  resetSavedSession: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function getBiometricLabel(types: LocalAuthentication.AuthenticationType[]): string {
+  if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+    return 'بصمة الوجه';
+  }
+
+  if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+    return 'البصمة';
+  }
+
+  return 'البصمة';
+}
+
+async function readStoredSession(): Promise<AuthSession | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AuthSession;
+    return parsed?.token ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveStoredSession(session: AuthSession): Promise<void> {
+  await SecureStore.setItemAsync(SESSION_STORAGE_KEY, JSON.stringify(session));
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasSavedSession, setHasSavedSession] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLabel, setBiometricLabel] = useState('البصمة');
 
   useEffect(() => {
-    setApiToken(null);
-    setSession(null);
-    setIsLoading(false);
+    let mounted = true;
+
+    async function bootstrap() {
+      try {
+        const [storedSession, hasHardware, isEnrolled, supportedTypes] = await Promise.all([
+          readStoredSession(),
+          LocalAuthentication.hasHardwareAsync().catch(() => false),
+          LocalAuthentication.isEnrolledAsync().catch(() => false),
+          LocalAuthentication.supportedAuthenticationTypesAsync().catch(() => []),
+        ]);
+
+        if (!mounted) return;
+
+        setHasSavedSession(Boolean(storedSession?.token));
+        setBiometricAvailable(Boolean(hasHardware && isEnrolled));
+        setBiometricLabel(getBiometricLabel(supportedTypes));
+        setApiToken(null);
+        setSession(null);
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    }
+
+    void bootstrap();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  async function signIn(payload: LoginPayload) {
-    const nextSession = await apiSignIn(payload);
+  async function activateSession(nextSession: AuthSession) {
     setApiToken(nextSession.token);
 
     try {
       const user = await getProfile();
-      setSession({
+      const hydratedSession = {
         ...nextSession,
         user,
-      });
+      };
+      setSession(hydratedSession);
+      await saveStoredSession(hydratedSession);
+      setHasSavedSession(true);
     } catch {
       setSession(nextSession);
+      await saveStoredSession(nextSession);
+      setHasSavedSession(true);
     }
+  }
+
+  async function signIn(payload: LoginPayload) {
+    const nextSession = await apiSignIn(payload);
+    await activateSession(nextSession);
+  }
+
+  async function signInWithBiometric() {
+    const storedSession = await readStoredSession();
+
+    if (!storedSession?.token) {
+      throw new Error('لا توجد جلسة محفوظة. سجّل الدخول مرة واحدة باسم المستخدم وكلمة المرور.');
+    }
+
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'الدخول إلى التمويل',
+      cancelLabel: 'إلغاء',
+      fallbackLabel: 'استخدام رمز الجهاز',
+      disableDeviceFallback: false,
+    });
+
+    if (!result.success) {
+      throw new Error('لم يتم تأكيد البصمة.');
+    }
+
+    await activateSession(storedSession);
   }
 
   async function refreshProfile() {
     if (!session?.token) return;
 
     const user = await getProfile();
-    setSession({
+    const nextSession = {
       ...session,
       user,
-    });
+    };
+    setSession(nextSession);
+    await saveStoredSession(nextSession);
+    setHasSavedSession(true);
   }
 
   async function signOut() {
@@ -55,7 +152,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
     } finally {
       setSession(null);
       setApiToken(null);
+      setHasSavedSession(Boolean(await readStoredSession()));
     }
+  }
+
+  async function resetSavedSession() {
+    await SecureStore.deleteItemAsync(SESSION_STORAGE_KEY);
+    setSession(null);
+    setApiToken(null);
+    setHasSavedSession(false);
   }
 
   const value = useMemo<AuthContextValue>(
@@ -64,11 +169,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
       isLoading,
       isAuthenticated: Boolean(session?.token),
       isGuestSession: false,
+      hasSavedSession,
+      biometricAvailable,
+      biometricLabel,
       signIn,
+      signInWithBiometric,
       signOut,
+      resetSavedSession,
       refreshProfile,
     }),
-    [isLoading, session],
+    [biometricAvailable, biometricLabel, hasSavedSession, isLoading, session],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
