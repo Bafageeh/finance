@@ -62,17 +62,31 @@ jobs:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          set -Eeuo pipefail
+
           if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
-            echo "No Android signing secrets configured. Using the generated default release signing." 
+            echo "No Android signing secrets configured. Using the generated default release signing."
             exit 0
           fi
 
           if [ -z "${ANDROID_KEYSTORE_PASSWORD:-}" ] || [ -z "${ANDROID_KEY_ALIAS:-}" ] || [ -z "${ANDROID_KEY_PASSWORD:-}" ]; then
-            echo "Missing one or more Android signing secrets. Required: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD."
-            exit 1
+            echo "One or more Android signing secrets are missing. Continuing with the generated default release signing for this APK."
+            exit 0
           fi
 
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/finance-release.keystore
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' > /tmp/finance-release.keystore.base64
+
+          if ! base64 --decode /tmp/finance-release.keystore.base64 > android/app/finance-release.keystore 2>/tmp/finance-keystore-decode.log; then
+            echo "ANDROID_KEYSTORE_BASE64 is not valid base64. Continuing with the generated default release signing for this APK."
+            rm -f android/app/finance-release.keystore
+            exit 0
+          fi
+
+          if [ ! -s android/app/finance-release.keystore ]; then
+            echo "Decoded keystore is empty. Continuing with the generated default release signing for this APK."
+            rm -f android/app/finance-release.keystore
+            exit 0
+          fi
 
           cat >> android/gradle.properties <<EOF
           FINANCE_RELEASE_STORE_FILE=finance-release.keystore
