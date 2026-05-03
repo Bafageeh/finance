@@ -1,4 +1,4 @@
-export type ReportKind = 'smart_collection' | 'portfolio' | 'late' | 'court' | 'upcoming';
+export type ReportKind = 'smart_collection' | 'portfolio' | 'late' | 'late_with_ali' | 'court' | 'upcoming';
 
 export interface ReportSummaryItem {
   label: string;
