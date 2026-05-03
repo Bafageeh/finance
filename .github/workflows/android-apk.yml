@@ -44,6 +44,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install Expo-compatible native modules
+        run: npx expo install expo-local-authentication expo-secure-store @expo/vector-icons
+
       - name: Configure production API
         run: |
           cat > .env <<'ENV'
