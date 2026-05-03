@@ -1,10 +1,11 @@
-import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { getProfile, setApiToken, signIn as apiSignIn, signOutRemote } from '@/services/api';
 import { AuthSession, LoginPayload } from '@/types/auth';
 
 const SESSION_STORAGE_KEY = 'finance.auth.session.v1';
+
+type LocalAuthenticationModule = typeof import('expo-local-authentication');
+type SecureStoreModule = typeof import('expo-secure-store');
 
 interface AuthContextValue {
   session: AuthSession | null;
@@ -23,12 +24,32 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function getBiometricLabel(types: LocalAuthentication.AuthenticationType[]): string {
-  if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+let secureStoreModulePromise: Promise<SecureStoreModule | null> | null = null;
+let localAuthenticationModulePromise: Promise<LocalAuthenticationModule | null> | null = null;
+let volatileSession: AuthSession | null = null;
+
+function getSecureStoreModule(): Promise<SecureStoreModule | null> {
+  if (!secureStoreModulePromise) {
+    secureStoreModulePromise = import('expo-secure-store').catch(() => null);
+  }
+
+  return secureStoreModulePromise;
+}
+
+function getLocalAuthenticationModule(): Promise<LocalAuthenticationModule | null> {
+  if (!localAuthenticationModulePromise) {
+    localAuthenticationModulePromise = import('expo-local-authentication').catch(() => null);
+  }
+
+  return localAuthenticationModulePromise;
+}
+
+function getBiometricLabel(types: number[], localAuthentication: LocalAuthenticationModule | null): string {
+  if (localAuthentication && types.includes(localAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
     return 'بصمة الوجه';
   }
 
-  if (types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+  if (localAuthentication && types.includes(localAuthentication.AuthenticationType.FINGERPRINT)) {
     return 'البصمة';
   }
 
@@ -37,21 +58,45 @@ function getBiometricLabel(types: LocalAuthentication.AuthenticationType[]): str
 
 async function readStoredSession(): Promise<AuthSession | null> {
   try {
-    const raw = await SecureStore.getItemAsync(SESSION_STORAGE_KEY);
+    const secureStore = await getSecureStoreModule();
+
+    if (!secureStore) {
+      return volatileSession;
+    }
+
+    const raw = await secureStore.getItemAsync(SESSION_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as AuthSession;
     return parsed?.token ? parsed : null;
   } catch {
-    return null;
+    return volatileSession;
   }
 }
 
 async function saveStoredSession(session: AuthSession): Promise<void> {
-  await SecureStore.setItemAsync(SESSION_STORAGE_KEY, JSON.stringify(session));
+  volatileSession = session;
+
+  try {
+    const secureStore = await getSecureStoreModule();
+    if (secureStore) {
+      await secureStore.setItemAsync(SESSION_STORAGE_KEY, JSON.stringify(session));
+    }
+  } catch {
+    // استمرار الدخول أهم من فشل التخزين الآمن على جهاز أو Build معين.
+  }
 }
 
 async function deleteStoredSession(): Promise<void> {
-  await SecureStore.deleteItemAsync(SESSION_STORAGE_KEY);
+  volatileSession = null;
+
+  try {
+    const secureStore = await getSecureStoreModule();
+    if (secureStore) {
+      await secureStore.deleteItemAsync(SESSION_STORAGE_KEY);
+    }
+  } catch {
+    // لا نوقف التطبيق بسبب تعذر حذف التخزين المحلي.
+  }
 }
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -66,18 +111,26 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     async function bootstrap() {
       try {
-        const [storedSession, hasHardware, isEnrolled, supportedTypes] = await Promise.all([
-          readStoredSession(),
-          LocalAuthentication.hasHardwareAsync().catch(() => false),
-          LocalAuthentication.isEnrolledAsync().catch(() => false),
-          LocalAuthentication.supportedAuthenticationTypesAsync().catch(() => []),
-        ]);
+        const localAuthentication = await getLocalAuthenticationModule();
+        const storedSession = await readStoredSession();
+
+        let hasHardware = false;
+        let isEnrolled = false;
+        let supportedTypes: number[] = [];
+
+        if (localAuthentication) {
+          [hasHardware, isEnrolled, supportedTypes] = await Promise.all([
+            localAuthentication.hasHardwareAsync().catch(() => false),
+            localAuthentication.isEnrolledAsync().catch(() => false),
+            localAuthentication.supportedAuthenticationTypesAsync().catch(() => []),
+          ]);
+        }
 
         if (!mounted) return;
 
         setHasSavedSession(Boolean(storedSession?.token));
-        setBiometricAvailable(Boolean(hasHardware && isEnrolled));
-        setBiometricLabel(getBiometricLabel(supportedTypes));
+        setBiometricAvailable(Boolean(localAuthentication && hasHardware && isEnrolled));
+        setBiometricLabel(getBiometricLabel(supportedTypes, localAuthentication));
         setApiToken(null);
         setSession(null);
       } finally {
@@ -125,13 +178,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
   }
 
   async function signInWithBiometric() {
+    const localAuthentication = await getLocalAuthenticationModule();
+
+    if (!localAuthentication) {
+      throw new Error('البصمة غير متاحة في هذه النسخة. سجّل الدخول باسم المستخدم وكلمة المرور.');
+    }
+
     const storedSession = await readStoredSession();
 
     if (!storedSession?.token) {
       throw new Error('لا توجد جلسة محفوظة. سجّل الدخول مرة واحدة باسم المستخدم وكلمة المرور.');
     }
 
-    const result = await LocalAuthentication.authenticateAsync({
+    const result = await localAuthentication.authenticateAsync({
       promptMessage: 'الدخول إلى التمويل',
       cancelLabel: 'إلغاء',
       fallbackLabel: 'استخدام رمز الجهاز',
