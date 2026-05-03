@@ -1,0 +1,87 @@
+name: Build Finance APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'finance-mobile-starter/**'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finance-android-apk
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build Android APK without EAS
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    defaults:
+      run:
+        working-directory: finance-mobile-starter
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Configure production API
+        run: |
+          cat > .env <<'ENV'
+          EXPO_PUBLIC_API_URL=https://finance.pm.sa/api/v1
+          EXPO_PUBLIC_API_BASE_URL=https://finance.pm.sa/api/v1
+          API_URL=https://finance.pm.sa/api/v1
+          ENV
+
+      - name: Generate Android project
+        run: npx expo prebuild --platform android --clean
+
+      - name: Build release APK with Gradle
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease
+
+      - name: Prepare APK artifact
+        run: |
+          mkdir -p ../apk-output
+          cp android/app/build/outputs/apk/release/app-release.apk ../apk-output/finance-latest.apk
+          ls -lh ../apk-output/finance-latest.apk
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-latest-apk
+          path: apk-output/finance-latest.apk
+          if-no-files-found: error
+
+      - name: Publish latest APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd ..
+          if ! gh release view finance-latest-apk >/dev/null 2>&1; then
+            gh release create finance-latest-apk \
+              --title 'Finance Latest APK' \
+              --notes 'آخر نسخة APK مبنية محليًا عبر Gradle بدون استخدام EAS.'
+          fi
+          gh release upload finance-latest-apk apk-output/finance-latest.apk --clobber
