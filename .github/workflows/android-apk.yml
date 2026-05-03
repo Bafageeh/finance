@@ -64,7 +64,13 @@ jobs:
       - name: Prepare APK artifact
         run: |
           mkdir -p ../apk-output
-          cp android/app/build/outputs/apk/release/app-release.apk ../apk-output/finance-latest.apk
+          APK_PATH="$(find android/app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)"
+          if [ -z "$APK_PATH" ]; then
+            echo "No release APK was produced."
+            find android/app/build/outputs -type f || true
+            exit 1
+          fi
+          cp "$APK_PATH" ../apk-output/finance-latest.apk
           ls -lh ../apk-output/finance-latest.apk
 
       - name: Upload workflow artifact
