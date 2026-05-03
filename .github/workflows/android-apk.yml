@@ -55,6 +55,87 @@ jobs:
       - name: Generate Android project
         run: npx expo prebuild --platform android --clean
 
+      - name: Configure Android signing keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "No Android signing secrets configured. Using the generated default release signing." 
+            exit 0
+          fi
+
+          if [ -z "${ANDROID_KEYSTORE_PASSWORD:-}" ] || [ -z "${ANDROID_KEY_ALIAS:-}" ] || [ -z "${ANDROID_KEY_PASSWORD:-}" ]; then
+            echo "Missing one or more Android signing secrets. Required: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD."
+            exit 1
+          fi
+
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/finance-release.keystore
+
+          cat >> android/gradle.properties <<EOF
+          FINANCE_RELEASE_STORE_FILE=finance-release.keystore
+          FINANCE_RELEASE_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD
+          FINANCE_RELEASE_KEY_ALIAS=$ANDROID_KEY_ALIAS
+          FINANCE_RELEASE_KEY_PASSWORD=$ANDROID_KEY_PASSWORD
+          EOF
+
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('android/app/build.gradle')
+          text = path.read_text()
+
+          release_config = """        release {
+                      if (project.hasProperty('FINANCE_RELEASE_STORE_FILE')) {
+                          storeFile file(FINANCE_RELEASE_STORE_FILE)
+                          storePassword FINANCE_RELEASE_STORE_PASSWORD
+                          keyAlias FINANCE_RELEASE_KEY_ALIAS
+                          keyPassword FINANCE_RELEASE_KEY_PASSWORD
+                      }
+                  }
+          """
+
+          if 'FINANCE_RELEASE_STORE_FILE' not in text:
+              marker = '        debug {'
+              start = text.find(marker)
+              if start == -1:
+                  raise SystemExit('Could not find debug signing config in android/app/build.gradle')
+
+              depth = 0
+              end = None
+              for index in range(start, len(text)):
+                  char = text[index]
+                  if char == '{':
+                      depth += 1
+                  elif char == '}':
+                      depth -= 1
+                      if depth == 0:
+                          end = index + 1
+                          break
+
+              if end is None:
+                  raise SystemExit('Could not detect end of debug signing config in android/app/build.gradle')
+
+              text = text[:end] + '\n' + release_config + text[end:]
+
+          build_types_start = text.find('buildTypes')
+          release_start = text.find('release {', build_types_start)
+          if release_start == -1:
+              raise SystemExit('Could not find release build type in android/app/build.gradle')
+
+          old = 'signingConfig signingConfigs.debug'
+          new = "signingConfig project.hasProperty('FINANCE_RELEASE_STORE_FILE') ? signingConfigs.release : signingConfigs.debug"
+          signing_index = text.find(old, release_start)
+          if signing_index != -1:
+              text = text[:signing_index] + new + text[signing_index + len(old):]
+          elif new not in text[release_start:]:
+              raise SystemExit('Could not update release signingConfig in android/app/build.gradle')
+
+          path.write_text(text)
+          PY
+
       - name: Build release APK with Gradle
         run: |
           cd android
