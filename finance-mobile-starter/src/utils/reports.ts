@@ -26,6 +26,24 @@ function rowsByRemaining(clients: Client[]): Client[] {
   return [...clients].sort((a, b) => b.summary.remaining_amount - a.summary.remaining_amount);
 }
 
+function hasAliProfitShare(client: Client): boolean {
+  return (
+    client.profit_share === 'shared'
+    || client.summary?.profit_share === 'shared'
+    || Number(client.summary?.ali_pct || 0) > 0
+    || Number(client.summary?.ali_total || 0) > 0
+    || Number((client as any).partner_profit_total || 0) > 0
+    || Number((client as any).partner_profit_monthly || 0) > 0
+  );
+}
+
+function lateClientRows(clients: Client[]) {
+  return clients
+    .map((client) => ({ client, info: getClientAlertInfo(client) }))
+    .filter(({ info }) => info.overdueCount > 0)
+    .sort((a, b) => b.info.overdueAmount - a.info.overdueAmount);
+}
+
 function urgencyLabel(urgency: AssistantUrgency): string {
   switch (urgency) {
     case 'critical':
@@ -157,10 +175,7 @@ export function buildPortfolioReport(clients: Client[], stats: StatsData): Repor
 }
 
 export function buildLateClientsReport(clients: Client[]): ReportDocument {
-  const lateClients = clients
-    .map((client) => ({ client, info: getClientAlertInfo(client) }))
-    .filter(({ info }) => info.overdueCount > 0)
-    .sort((a, b) => b.info.overdueAmount - a.info.overdueAmount);
+  const lateClients = lateClientRows(clients);
 
   return {
     kind: 'late',
@@ -181,6 +196,35 @@ export function buildLateClientsReport(clients: Client[]): ReportDocument {
       plainCurrency(info.overdueAmount),
       plainCurrency(client.summary.monthly_installment),
       plainCurrency(client.summary.remaining_amount),
+      client.has_court ? 'قضية' : statusLabel(client.status),
+    ]),
+  };
+}
+
+export function buildLateClientsWithAliReport(clients: Client[]): ReportDocument {
+  const lateClients = lateClientRows(clients.filter(hasAliProfitShare));
+
+  return {
+    kind: 'late_with_ali',
+    title: 'تقرير المتأخرين مع علي',
+    subtitle: 'التمويلات المتأخرة التي يشارك بها علي في الأرباح فقط.',
+    filename: 'late-clients-with-ali-report',
+    generatedAt: nowStamp(),
+    summary: [
+      { label: 'عدد المتأخرين', value: String(lateClients.length) },
+      { label: 'إجمالي المتأخر', value: formatCurrency(lateClients.reduce((sum, item) => sum + item.info.overdueAmount, 0)) },
+      { label: 'ربح علي الكلي', value: formatCurrency(lateClients.reduce((sum, item) => sum + Number((item.client as any).partner_profit_total ?? item.client.summary.ali_total ?? 0), 0)) },
+    ],
+    headers: ['العميل', 'الجوال', 'عدد الأقساط', 'المبلغ المتأخر', 'القسط الشهري', 'المتبقي', 'ربح علي', 'من حساب', 'الحالة'],
+    rows: lateClients.map(({ client, info }) => [
+      client.name,
+      safe(client.phone),
+      info.overdueCount,
+      plainCurrency(info.overdueAmount),
+      plainCurrency(client.summary.monthly_installment),
+      plainCurrency(client.summary.remaining_amount),
+      plainCurrency(Number((client as any).partner_profit_total ?? client.summary.ali_total ?? 0)),
+      safe((client as any).source_account_name),
       client.has_court ? 'قضية' : statusLabel(client.status),
     ]),
   };
