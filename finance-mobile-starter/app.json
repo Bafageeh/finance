@@ -3,15 +3,22 @@
     "name": "Finance Mobile",
     "slug": "finance-mobile",
     "scheme": "finance-mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "jsEngine": "jsc",
+    "newArchEnabled": false,
     "icon": "./assets/icon.png",
     "android": {
+      "package": "com.example.financemobile",
+      "jsEngine": "jsc",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       }
+    },
+    "ios": {
+      "bundleIdentifier": "com.example.financemobile"
     },
     "plugins": [
       "expo-router",
@@ -19,12 +26,6 @@
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "android": {
-      "package": "com.example.financemobile"
-    },
-    "ios": {
-      "bundleIdentifier": "com.example.financemobile"
     },
     "extra": {
       "router": {},
