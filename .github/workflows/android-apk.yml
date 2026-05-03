@@ -168,15 +168,31 @@ jobs:
             find android/app/build/outputs -type f || true
             exit 1
           fi
+          cp "$APK_PATH" ../apk-output/finance-${GITHUB_SHA}.apk
           cp "$APK_PATH" ../apk-output/finance-latest.apk
-          ls -lh ../apk-output/finance-latest.apk
+          ls -lh ../apk-output/
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: finance-latest-apk
-          path: apk-output/finance-latest.apk
+          name: finance-apk-${{ github.sha }}
+          path: apk-output/*.apk
           if-no-files-found: error
+
+      - name: Publish commit APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd ..
+          TAG="finance-apk-${GITHUB_SHA}"
+          TITLE="Finance APK ${GITHUB_SHA}"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "$TITLE" \
+              --notes "APK مبني من commit ${GITHUB_SHA}. استخدم هذا الرابط لتجنب تحميل APK قديم من latest."
+          fi
+          gh release upload "$TAG" apk-output/finance-${GITHUB_SHA}.apk --clobber
+          gh release upload "$TAG" apk-output/finance-latest.apk --clobber
 
       - name: Publish latest APK release
         env:
