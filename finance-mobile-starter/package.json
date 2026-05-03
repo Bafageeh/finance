@@ -1,7 +1,7 @@
 {
   "name": "finance-mobile-starter",
   "private": true,
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
