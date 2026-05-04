@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Client extends Model
 {
     protected $fillable = [
+        'account_id', 'user_id',
         'name', 'id_number', 'phone', 'asset',
         'contract_date', 'first_installment_date', 'cost', 'principal', 'rate',
         'months', 'bond_cost', 'bond_total', 'profit_share',
@@ -15,6 +17,8 @@ class Client extends Model
     ];
 
     protected $casts = [
+        'account_id' => 'integer',
+        'user_id' => 'integer',
         'contract_date' => 'date',
         'first_installment_date' => 'date',
         'cost'          => 'float',
@@ -25,6 +29,11 @@ class Client extends Model
         'bond_total'    => 'float',
         'has_court'     => 'boolean',
     ];
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class);
+    }
 
     public function payments(): HasMany
     {
