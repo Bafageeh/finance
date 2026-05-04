@@ -1,22 +1,22 @@
 {
   "expo": {
-    "name": "Finance Diagnostic",
-    "slug": "finance-diagnostic",
-    "scheme": "finance-diagnostic",
-    "version": "9.9.9",
+    "name": "Finance Mobile",
+    "slug": "finance-mobile",
+    "scheme": "finance-mobile",
+    "version": "1.0.2",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icon.png",
     "android": {
-      "package": "com.pm.finance.diagnostic",
-      "versionCode": 99,
+      "package": "com.example.financemobile",
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       }
     },
     "ios": {
-      "bundleIdentifier": "com.pm.finance.diagnostic"
+      "bundleIdentifier": "com.example.financemobile"
     },
     "plugins": [
       "expo-router",
