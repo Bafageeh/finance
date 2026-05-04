@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AhmedIntegrationController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ClientReminderController;
@@ -8,6 +9,8 @@ use App\Http\Controllers\Api\PartnerClientController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
+    Route::get('integrations/ahmed/installments-income', [AhmedIntegrationController::class, 'installmentsIncome']);
+
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
