@@ -1,14 +1,48 @@
+import { Stack } from 'expo-router';
+import { Component, PropsWithChildren } from 'react';
 import { StatusBar, StyleSheet, Text, View } from 'react-native';
+import { AuthProvider } from '@/contexts/auth-context';
+
+class StartupErrorBoundary extends Component<PropsWithChildren, { error: Error | null }> {
+  state = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={styles.container}>
+          <StatusBar barStyle="dark-content" />
+          <Text style={styles.title}>Finance Mobile</Text>
+          <Text style={styles.errorTitle}>تم التقاط خطأ داخل التطبيق</Text>
+          <Text style={styles.note}>{this.state.error.message || 'خطأ غير معروف'}</Text>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 export default function RootLayout() {
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <Text style={styles.title}>Finance Mobile</Text>
-      <Text style={styles.subtitle}>APK Diagnostic</Text>
-      <Text style={styles.success}>فتح APK بنجاح</Text>
-      <Text style={styles.note}>هذه نسخة اختبار APK فقط. إذا فتحت هذه الشاشة، فالمشكلة داخل شاشات التطبيق الحقيقي وليست في ملف APK أو الجهاز.</Text>
-    </View>
+    <StartupErrorBoundary>
+      <AuthProvider>
+        <StatusBar barStyle="dark-content" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: '#f5f5f3' },
+          }}
+        >
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+          <Stack.Screen name="(protected)" options={{ headerShown: false }} />
+        </Stack>
+      </AuthProvider>
+    </StartupErrorBoundary>
   );
 }
 
@@ -22,21 +56,15 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   title: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '900',
     color: '#1a1a18',
     textAlign: 'center',
   },
-  subtitle: {
+  errorTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#185fa5',
-    textAlign: 'center',
-  },
-  success: {
-    fontSize: 20,
     fontWeight: '900',
-    color: '#1d9e75',
+    color: '#a32d2d',
     textAlign: 'center',
   },
   note: {
