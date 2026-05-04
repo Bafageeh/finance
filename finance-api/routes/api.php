@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\PartnerClientController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
+    Route::get('integrations/ahmed/summary', [AhmedIntegrationController::class, 'summary']);
     Route::get('integrations/ahmed/installments-income', [AhmedIntegrationController::class, 'installmentsIncome']);
 
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
