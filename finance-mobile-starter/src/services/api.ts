@@ -22,7 +22,9 @@ import {
 } from '@/services/mock-data';
 
 function resolveApiBase(): string {
-  const host = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+  const host = typeof window !== 'undefined' && window.location?.hostname
+    ? window.location.hostname.toLowerCase()
+    : '';
 
   if (host === 'sara.pm.sa' || host.endsWith('.sara.pm.sa')) {
     return 'https://sara.pm.sa/api/v1';
@@ -35,7 +37,7 @@ function resolveApiBase(): string {
   return (
     process.env.EXPO_PUBLIC_API_BASE_URL
     || process.env.EXPO_PUBLIC_API_URL
-    || 'http://127.0.0.1:8000/api/v1'
+    || 'https://finance.pm.sa/api/v1'
   );
 }
 
