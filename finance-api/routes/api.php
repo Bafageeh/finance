@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ClientReminderController;
 use App\Http\Controllers\Api\FollowUpController;
 use App\Http\Controllers\Api\PartnerClientController;
+use App\Http\Controllers\Api\SafeClientImportController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -25,6 +26,7 @@ Route::prefix('v1')->group(function () {
         Route::get('stats', [ClientController::class, 'stats']);
         Route::get('partner-clients', [PartnerClientController::class, 'index']);
         Route::get('partner-clients/{client}', [PartnerClientController::class, 'show']);
+        Route::post('clients/safe-import', [SafeClientImportController::class, 'store']);
         Route::apiResource('clients', ClientController::class);
         Route::post('clients/{client}/pay', [ClientController::class, 'recordPayment']);
         Route::delete('clients/{client}/pay/{periodKey}', [ClientController::class, 'removePayment']);
