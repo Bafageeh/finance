@@ -4,14 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
 
 class AhmedIntegrationController extends Controller
 {
+    private const AHMED_EMAIL = 'admin@pm.sa';
+
     public function summary(): JsonResponse
     {
-        $clients = Client::with('payments')->get();
+        $clients = $this->ahmedClients();
         $today = Carbon::today();
 
         $activeClients = $clients->filter(fn ($client) =>
@@ -22,16 +25,13 @@ class AhmedIntegrationController extends Controller
             $client->status === 'done' || $client->getRemainingAmount() <= 0.01
         );
         $courtClients = $clients->where('has_court', true);
-        $nonStuckClients = $clients->where('status', '!=', 'stuck');
 
         $monthlyInstallments = $activeClients->sum(fn ($client) => $client->getMonthlyInstallment());
-        $monthlyProfit = $activeClients->sum(fn ($client) => $client->getMonthlyProfit());
         $ahmedMonthlyProfit = $activeClients->sum(fn ($client) => $this->ahmedMonthlyProfit($client));
-        $aliMonthlyProfit = $activeClients->sum(fn ($client) => $this->aliMonthlyProfit($client));
 
         $totalInstallmentsRemaining = $activeClients->sum(fn ($client) => $client->getRemainingAmount());
         $totalPrincipalRemaining = $activeClients->sum(fn ($client) => $client->getRemainingPrincipal());
-        $totalAhmedProfit = $nonStuckClients->sum(fn ($client) => $this->ahmedTotalProfit($client));
+        $totalAhmedProfit = $activeClients->sum(fn ($client) => $this->ahmedTotalProfit($client));
 
         $overdueInstallmentsAmount = 0.0;
         $overdueInstallmentsCount = 0;
@@ -61,6 +61,7 @@ class AhmedIntegrationController extends Controller
             'data' => [
                 'source' => 'finance',
                 'owner' => 'ahmed',
+                'account_email' => self::AHMED_EMAIL,
                 'currency' => 'SAR',
                 'period' => [
                     'type' => 'monthly',
@@ -69,9 +70,7 @@ class AhmedIntegrationController extends Controller
                 ],
                 'income' => [
                     'monthly_installments_total' => $this->money($monthlyInstallments),
-                    'monthly_profit_total' => $this->money($monthlyProfit),
                     'ahmed_monthly_profit' => $this->money($ahmedMonthlyProfit),
-                    'ali_monthly_profit' => $this->money($aliMonthlyProfit),
                 ],
                 'portfolio' => [
                     'remaining_installments_total' => $this->money($totalInstallmentsRemaining),
@@ -97,7 +96,7 @@ class AhmedIntegrationController extends Controller
 
     public function installmentsIncome(): JsonResponse
     {
-        $clients = Client::with('payments')->get();
+        $clients = $this->ahmedClients();
         $activeClients = $clients->filter(fn ($client) =>
             $client->status === 'active' && $client->getRemainingAmount() > 0
         );
@@ -110,6 +109,7 @@ class AhmedIntegrationController extends Controller
                 'metric' => 'ahmed_installments_income',
                 'label' => 'دخل الأقساط لأحمد من Finance',
                 'owner' => 'ahmed',
+                'account_email' => self::AHMED_EMAIL,
                 'period' => 'monthly',
                 'amount' => $this->money($ahmedMonthly),
                 'currency' => 'SAR',
@@ -120,14 +120,24 @@ class AhmedIntegrationController extends Controller
         ]);
     }
 
+    private function ahmedClients()
+    {
+        $accountId = User::query()
+            ->where('email', self::AHMED_EMAIL)
+            ->value('account_id');
+
+        if (! $accountId) {
+            return collect();
+        }
+
+        return Client::with('payments')
+            ->where('account_id', $accountId)
+            ->get();
+    }
+
     private function ahmedMonthlyProfit(Client $client): float
     {
         return $client->getMonthlyProfit() * $this->ahmedProfitPercent($client);
-    }
-
-    private function aliMonthlyProfit(Client $client): float
-    {
-        return $client->getMonthlyProfit() * $this->aliProfitPercent($client);
     }
 
     private function ahmedTotalProfit(Client $client): float
@@ -138,11 +148,6 @@ class AhmedIntegrationController extends Controller
     private function ahmedProfitPercent(Client $client): float
     {
         return ($client->profit_share ?: 'shared') === 'ahmad_only' ? 1.0 : 0.65;
-    }
-
-    private function aliProfitPercent(Client $client): float
-    {
-        return ($client->profit_share ?: 'shared') === 'ahmad_only' ? 0.0 : 0.35;
     }
 
     private function money(float|int|null $value): float
