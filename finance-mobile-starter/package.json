@@ -1,8 +1,8 @@
 {
   "name": "finance-mobile-starter",
   "private": true,
-  "main": "index.js",
-  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "version": "1.0.2",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -10,6 +10,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
     "@react-native-community/datetimepicker": "8.6.0",
     "@react-navigation/bottom-tabs": "^7.15.5",
     "@react-navigation/native": "^7.1.33",
@@ -17,10 +18,8 @@
     "expo-constants": "~55.0.15",
     "expo-file-system": "~55.0.17",
     "expo-linking": "~55.0.14",
-    "expo-local-authentication": "*",
     "expo-print": "~55.0.13",
     "expo-router": "~55.0.13",
-    "expo-secure-store": "*",
     "expo-sharing": "~55.0.18",
     "expo-status-bar": "~55.0.5",
     "react": "19.2.0",
