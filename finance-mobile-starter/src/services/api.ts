@@ -252,9 +252,14 @@ export async function getClient(id: number | string): Promise<Client> {
 
 export async function createClient(payload: CreateClientPayload): Promise<Client> {
   if (!USE_MOCKS) {
-    const response = await request<ApiEnvelope<Client> | Client>('/clients', {
+    const safePayload = {
+      ...payload,
+      confirm_insert_only: true,
+    };
+
+    const response = await request<ApiEnvelope<Client> | Client>('/clients/safe-import', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(safePayload),
     });
     return normalizeClientCapital(pickEnvelopeData<Client>(response));
   }
