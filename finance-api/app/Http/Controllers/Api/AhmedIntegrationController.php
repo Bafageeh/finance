@@ -32,6 +32,8 @@ class AhmedIntegrationController extends Controller
         $totalInstallmentsRemaining = $activeClients->sum(fn ($client) => $client->getRemainingAmount());
         $totalPrincipalRemaining = $activeClients->sum(fn ($client) => $client->getRemainingPrincipal());
         $totalAhmedProfit = $activeClients->sum(fn ($client) => $this->ahmedTotalProfit($client));
+        $stuckAhmedProfit = $stuckClients->sum(fn ($client) => $this->ahmedTotalProfit($client));
+        $netAhmedProfitAfterStuck = $totalAhmedProfit - $stuckAhmedProfit;
 
         $overdueInstallmentsAmount = 0.0;
         $overdueInstallmentsCount = 0;
@@ -76,6 +78,8 @@ class AhmedIntegrationController extends Controller
                     'remaining_installments_total' => $this->money($totalInstallmentsRemaining),
                     'remaining_principal_total' => $this->money($totalPrincipalRemaining),
                     'ahmed_total_profit' => $this->money($totalAhmedProfit),
+                    'ahmed_stuck_profit_deduction' => $this->money($stuckAhmedProfit),
+                    'ahmed_net_profit_after_stuck_deduction' => $this->money($netAhmedProfitAfterStuck),
                 ],
                 'counts' => [
                     'clients_total' => $clients->count(),
