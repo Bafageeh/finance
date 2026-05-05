@@ -54,6 +54,7 @@ class AhmedIntegrationController extends Controller
                     'ali_monthly_profit' => $this->money($aliMonthlyProfit),
                 ],
                 'portfolio' => [
+                    'active_monthly_installments' => $this->money($monthlyInstallmentsTotal),
                     'remaining_installments_total' => $this->money($remainingInstallmentsTotal),
                     'remaining_principal_total' => $this->money($remainingPrincipalTotal),
                     'ahmed_total_profit' => $this->money($ahmedTotalProfit),
@@ -76,6 +77,7 @@ class AhmedIntegrationController extends Controller
                     'overdue_amount' => $this->money($overdueAmount),
                 ],
                 'rules' => [
+                    'active_monthly_installments' => 'مجموع الأقساط الشهرية للعملاء النشطين والمتأخرين فقط، مع استبعاد المتعثرين والقضايا والمنتهين والملغيين. المتأخر يدخل في الحساب لأنه ليس متعثرًا.',
                     'ahmed_monthly_profit' => '65% من ربح التمويل الشهري إذا كان علي شريكًا، و100% إذا لم يكن علي شريكًا. يتم احتساب النشطين والمتأخرين فقط، واستبعاد المتعثرين والقضايا والمنتهين والملغيين.',
                     'included_statuses' => ['active', 'late', 'overdue'],
                     'excluded_statuses' => ['stuck', 'court', 'done', 'cancelled'],
