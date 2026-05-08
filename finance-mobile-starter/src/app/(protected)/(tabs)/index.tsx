@@ -20,6 +20,7 @@ import { formatCurrency, formatDate } from '@/utils/format';
 import { colors } from '@/utils/theme';
 
 type FinanceDashboardFilter = Extract<ClientFilter, 'all' | 'active' | 'late' | 'stuck' | 'court' | 'done'>;
+type SelectableFinanceFilter = Exclude<FinanceDashboardFilter, 'all'>;
 
 const financeFilterOptions: { key: FinanceDashboardFilter; label: string }[] = [
   { key: 'all', label: 'الكل' },
@@ -34,7 +35,7 @@ export default function FinanceHomeScreen() {
   const isFocused = useIsFocused();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
-  const [clientFilter, setClientFilter] = useState<FinanceDashboardFilter>('all');
+  const [clientFilters, setClientFilters] = useState<SelectableFinanceFilter[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,14 +62,32 @@ export default function FinanceHomeScreen() {
   }, [isFocused]);
 
   const filteredClients = useMemo(
-    () => clients.filter((client) => matchesFinanceFilter(client, clientFilter)),
-    [clients, clientFilter],
+    () => clients.filter((client) => matchesFinanceFilters(client, clientFilters)),
+    [clients, clientFilters],
   );
 
-  const selectedFilterLabel = useMemo(
-    () => financeFilterOptions.find((option) => option.key === clientFilter)?.label || 'الكل',
-    [clientFilter],
-  );
+  const selectedFilterLabel = useMemo(() => {
+    if (clientFilters.length === 0) return 'الكل';
+    return financeFilterOptions
+      .filter((option): option is { key: SelectableFinanceFilter; label: string } => option.key !== 'all' && clientFilters.includes(option.key))
+      .map((option) => option.label)
+      .join(' + ');
+  }, [clientFilters]);
+
+  const toggleClientFilter = (filter: FinanceDashboardFilter) => {
+    if (filter === 'all') {
+      setClientFilters([]);
+      return;
+    }
+
+    setClientFilters((current) => {
+      if (current.includes(filter)) {
+        return current.filter((item) => item !== filter);
+      }
+
+      return [...current, filter];
+    });
+  };
 
   const dashboardStats = useMemo(() => buildDashboardStats(filteredClients), [filteredClients]);
 
@@ -149,13 +168,13 @@ export default function FinanceHomeScreen() {
             <AppCard title="فلتر العملاء">
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
                 {financeFilterOptions.map((option) => {
-                  const isActive = option.key === clientFilter;
+                  const isActive = option.key === 'all' ? clientFilters.length === 0 : clientFilters.includes(option.key);
                   return (
                     <TouchableOpacity
                       key={option.key}
                       activeOpacity={0.85}
                       style={[styles.filterChip, isActive && styles.filterChipActive]}
-                      onPress={() => setClientFilter(option.key)}
+                      onPress={() => toggleClientFilter(option.key)}
                     >
                       <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>{option.label}</Text>
                     </TouchableOpacity>
@@ -349,8 +368,12 @@ function buildDashboardStats(clients: Client[]) {
   };
 }
 
-function matchesFinanceFilter(client: Client, filter: FinanceDashboardFilter): boolean {
-  if (filter === 'all') return true;
+function matchesFinanceFilters(client: Client, filters: SelectableFinanceFilter[]): boolean {
+  if (filters.length === 0) return true;
+  return filters.some((filter) => matchesFinanceFilter(client, filter));
+}
+
+function matchesFinanceFilter(client: Client, filter: SelectableFinanceFilter): boolean {
   if (filter === 'court') return client.has_court;
   if (filter === 'stuck') return isStuckClient(client) && !client.has_court;
   if (filter === 'done') return isDoneClient(client);
