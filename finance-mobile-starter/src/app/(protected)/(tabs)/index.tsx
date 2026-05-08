@@ -13,16 +13,28 @@ import { MetricCard } from '@/components/MetricCard';
 import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/SectionHeader';
 import { getClients, getStats } from '@/services/api';
-import { Client, StatsData } from '@/types/api';
+import { Client, ClientFilter, StatsData } from '@/types/api';
 import { buildCollectionEntries } from '@/utils/alerts';
 import { getClientAlertInfo } from '@/utils/finance';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { colors } from '@/utils/theme';
 
+type FinanceDashboardFilter = Extract<ClientFilter, 'all' | 'active' | 'late' | 'stuck' | 'court' | 'done'>;
+
+const financeFilterOptions: { key: FinanceDashboardFilter; label: string }[] = [
+  { key: 'all', label: 'الكل' },
+  { key: 'active', label: 'نشط' },
+  { key: 'late', label: 'متأخر' },
+  { key: 'stuck', label: 'متعثر' },
+  { key: 'court', label: 'قضية' },
+  { key: 'done', label: 'منتهي' },
+];
+
 export default function FinanceHomeScreen() {
   const isFocused = useIsFocused();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
+  const [clientFilter, setClientFilter] = useState<FinanceDashboardFilter>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,15 +60,27 @@ export default function FinanceHomeScreen() {
     }
   }, [isFocused]);
 
+  const filteredClients = useMemo(
+    () => clients.filter((client) => matchesFinanceFilter(client, clientFilter)),
+    [clients, clientFilter],
+  );
+
+  const selectedFilterLabel = useMemo(
+    () => financeFilterOptions.find((option) => option.key === clientFilter)?.label || 'الكل',
+    [clientFilter],
+  );
+
+  const dashboardStats = useMemo(() => buildDashboardStats(filteredClients), [filteredClients]);
+
   const alertGroups = useMemo(() => {
-    const courtClients = clients.filter((client) => client.has_court);
-    const lateClients = clients
+    const courtClients = filteredClients.filter((client) => client.has_court);
+    const lateClients = filteredClients
       .map((client) => ({ client, info: getClientAlertInfo(client) }))
-      .filter(({ info }) => info.overdueCount > 0);
-    const warnClients = clients
+      .filter(({ client, info }) => isLateClient(client, info));
+    const warnClients = filteredClients
       .map((client) => ({ client, info: getClientAlertInfo(client) }))
-      .filter(({ info }) => info.overdueCount === 0 && info.nextUpcoming && info.daysUntilNext !== null && info.daysUntilNext <= 7);
-    const stuckClients = clients.filter((client) => client.status === 'stuck' && !client.has_court);
+      .filter(({ client, info }) => !isDoneClient(client) && !isStuckClient(client) && !client.has_court && info.overdueCount === 0 && info.nextUpcoming && info.daysUntilNext !== null && info.daysUntilNext <= 7);
+    const stuckClients = filteredClients.filter((client) => isStuckClient(client) && !client.has_court);
 
     return {
       courtClients,
@@ -65,12 +89,12 @@ export default function FinanceHomeScreen() {
       stuckClients,
       lateAmount: lateClients.reduce((sum, entry) => sum + entry.info.overdueAmount, 0),
       upcomingAmount: warnClients.reduce((sum, entry) => sum + (entry.info.nextUpcoming?.amount || 0), 0),
-      courtRemaining: courtClients.reduce((sum, client) => sum + client.summary.remaining_amount, 0),
-      stuckRemaining: stuckClients.reduce((sum, client) => sum + client.summary.remaining_amount, 0),
+      courtRemaining: courtClients.reduce((sum, client) => sum + Number(client.summary?.remaining_amount || 0), 0),
+      stuckRemaining: stuckClients.reduce((sum, client) => sum + Number(client.summary?.remaining_amount || 0), 0),
     };
-  }, [clients]);
+  }, [filteredClients]);
 
-  const collectionEntries = useMemo(() => buildCollectionEntries(clients, 'all'), [clients]);
+  const collectionEntries = useMemo(() => buildCollectionEntries(filteredClients, 'all'), [filteredClients]);
 
   const collectionSummary = useMemo(() => {
     const lateCount = collectionEntries.filter((entry) => entry.state === 'late').length;
@@ -80,11 +104,11 @@ export default function FinanceHomeScreen() {
     return { lateCount, upcomingCount, totalAmount };
   }, [collectionEntries]);
 
-  const totalRemainingFinancedCapital = useMemo(() => clients.reduce((sum, client) => {
+  const totalRemainingFinancedCapital = useMemo(() => filteredClients.reduce((sum, client) => {
     const financedAmount = Number(client.summary?.financed_amount || 0);
     const paidAmount = Number(client.summary?.paid_amount || 0);
     return sum + Math.max(0, financedAmount - paidAmount);
-  }, 0), [clients]);
+  }, 0), [filteredClients]);
 
   const collectionPreview = useMemo(() => collectionEntries.slice(0, 4), [collectionEntries]);
   const topLateClients = useMemo(() => alertGroups.lateClients.slice(0, 2), [alertGroups.lateClients]);
@@ -110,23 +134,42 @@ export default function FinanceHomeScreen() {
         {!loading && !error && stats ? (
           <>
             <FinanceHeroCard
-              totalClients={stats.counts.total}
-              activeCount={stats.counts.active}
-              lateCount={alertGroups.lateClients.length}
-              courtCount={stats.counts.court}
-              monthlyIncomeText={formatCurrency(stats.monthly_income)}
-              monthlyProfitText={formatCurrency(stats.monthly_profit)}
-              remainingText={formatCurrency(stats.zakat_base)}
+              totalClients={dashboardStats.counts.total}
+              activeCount={dashboardStats.counts.active}
+              lateCount={dashboardStats.counts.late}
+              courtCount={dashboardStats.counts.court}
+              monthlyIncomeText={formatCurrency(dashboardStats.monthlyIncome)}
+              monthlyProfitText={formatCurrency(dashboardStats.monthlyProfit)}
+              remainingText={formatCurrency(dashboardStats.remainingAmount)}
               onAddClient={() => router.push('/clients/form')}
               onOpenClients={() => router.push('/clients')}
               onOpenCollections={() => router.push('/collections')}
             />
 
+            <AppCard title="فلتر العملاء">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                {financeFilterOptions.map((option) => {
+                  const isActive = option.key === clientFilter;
+                  return (
+                    <TouchableOpacity
+                      key={option.key}
+                      activeOpacity={0.85}
+                      style={[styles.filterChip, isActive && styles.filterChipActive]}
+                      onPress={() => setClientFilter(option.key)}
+                    >
+                      <Text style={[styles.filterChipText, isActive && styles.filterChipTextActive]}>{option.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <Text style={styles.filterHelper}>الإحصائيات والقوائم محسوبة الآن حسب: {selectedFilterLabel}</Text>
+            </AppCard>
+
             <AppCard title="نظرة سريعة">
               <View style={styles.metricGrid}>
-                <MetricCard label="العملاء" value={String(stats.counts.total)} />
-                <MetricCard label="نشطون" value={String(stats.counts.active)} tone="success" />
-                <MetricCard label="المتأخرون" value={String(collectionSummary.lateCount)} tone="danger" />
+                <MetricCard label="العملاء" value={String(dashboardStats.counts.total)} />
+                <MetricCard label="نشطون" value={String(dashboardStats.counts.active)} tone="success" />
+                <MetricCard label="المتأخرون" value={String(dashboardStats.counts.late)} tone="danger" />
                 <MetricCard label="القريب" value={String(collectionSummary.upcomingCount)} tone="warning" />
               </View>
             </AppCard>
@@ -201,10 +244,10 @@ export default function FinanceHomeScreen() {
 
             <AppCard title="التحصيل والربحية">
               <View style={styles.metricGrid}>
-                <MetricCard label="الدفعات الشهرية" value={formatCurrency(stats.monthly_income)} tone="info" />
-                <MetricCard label="الربح الشهري" value={formatCurrency(stats.monthly_profit)} tone="success" />
+                <MetricCard label="الدفعات الشهرية" value={formatCurrency(dashboardStats.monthlyIncome)} tone="info" />
+                <MetricCard label="الربح الشهري" value={formatCurrency(dashboardStats.monthlyProfit)} tone="success" />
                 <MetricCard label="رأس المال المتبقي" value={formatCurrency(totalRemainingFinancedCapital)} tone="warning" />
-                <MetricCard label="الزكاة + الصدقة" value={formatCurrency(stats.zakat + stats.sadaqa)} tone="warning" />
+                <MetricCard label="الزكاة + الصدقة" value={formatCurrency(dashboardStats.zakat + dashboardStats.sadaqa)} tone="warning" />
               </View>
             </AppCard>
 
@@ -274,9 +317,107 @@ export default function FinanceHomeScreen() {
   );
 }
 
+function buildDashboardStats(clients: Client[]) {
+  const counts = clients.reduce((acc, client) => {
+    if (client.has_court) acc.court += 1;
+    if (isStuckClient(client) && !client.has_court) acc.stuck += 1;
+    if (isDoneClient(client)) acc.done += 1;
+    if (isLateClient(client) && !client.has_court) acc.late += 1;
+    if (isActiveClient(client)) acc.active += 1;
+    return acc;
+  }, { total: clients.length, active: 0, late: 0, stuck: 0, court: 0, done: 0 });
+
+  const monthlyIncome = clients.reduce((sum, client) => sum + Number(client.summary?.monthly_installment || 0), 0);
+  const monthlyProfit = clients.reduce((sum, client) => sum + Number(client.summary?.monthly_profit || 0), 0);
+  const ahmadMonthly = clients.reduce((sum, client) => sum + Number(client.summary?.ahmad_monthly || 0), 0);
+  const aliMonthly = clients.reduce((sum, client) => sum + Number(client.summary?.ali_monthly || 0), 0);
+  const ahmadTotal = clients.reduce((sum, client) => sum + Number(client.summary?.ahmad_total || 0), 0);
+  const remainingAmount = clients.reduce((sum, client) => sum + Number(client.summary?.remaining_amount || 0), 0);
+  const zakat = remainingAmount * 0.025;
+  const sadaqa = remainingAmount * 0.01;
+
+  return {
+    counts,
+    monthlyIncome,
+    monthlyProfit,
+    ahmadMonthly,
+    aliMonthly,
+    ahmadTotal,
+    remainingAmount,
+    zakat,
+    sadaqa,
+  };
+}
+
+function matchesFinanceFilter(client: Client, filter: FinanceDashboardFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'court') return client.has_court;
+  if (filter === 'stuck') return isStuckClient(client) && !client.has_court;
+  if (filter === 'done') return isDoneClient(client);
+  if (filter === 'late') return isLateClient(client) && !client.has_court;
+  if (filter === 'active') return isActiveClient(client);
+  return true;
+}
+
+function isActiveClient(client: Client): boolean {
+  return client.status === 'active'
+    && !client.has_court
+    && !isDoneClient(client)
+    && !isLateClient(client)
+    && Number(client.summary?.remaining_amount || 0) > 0.01;
+}
+
+function isLateClient(client: Client, info = getClientAlertInfo(client)): boolean {
+  return !isDoneClient(client)
+    && !isStuckClient(client)
+    && Number(client.summary?.remaining_amount || 0) > 0.01
+    && info.overdueCount > 0;
+}
+
+function isStuckClient(client: Client): boolean {
+  return client.status === 'stuck';
+}
+
+function isDoneClient(client: Client): boolean {
+  return client.status === 'done' || Number(client.summary?.remaining_amount || 0) <= 0.01;
+}
+
 const styles = StyleSheet.create({
   content: {
     paddingBottom: 84,
+  },
+  filterRow: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  filterChip: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  filterChipTextActive: {
+    color: '#fff',
+  },
+  filterHelper: {
+    marginTop: 10,
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 20,
+    textAlign: 'right',
+    fontWeight: '800',
   },
   metricGrid: {
     flexDirection: 'row-reverse',
