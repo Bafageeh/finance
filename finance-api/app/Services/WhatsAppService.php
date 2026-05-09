@@ -58,6 +58,30 @@ class WhatsAppService
         ]);
     }
 
+    public function sendDocument(string $toPhone, string $documentUrl, string $filename, ?string $caption = null): array
+    {
+        if (! $this->enabled()) {
+            throw new RuntimeException('إعدادات واتساب غير مكتملة.');
+        }
+
+        $document = [
+            'link' => $documentUrl,
+            'filename' => $filename,
+        ];
+
+        if ($caption !== null && $caption !== '') {
+            $document['caption'] = mb_substr($caption, 0, 1024);
+        }
+
+        return $this->postMessage([
+            'messaging_product' => 'whatsapp',
+            'recipient_type' => 'individual',
+            'to' => $this->normalizeSaudiPhone($toPhone),
+            'type' => 'document',
+            'document' => $document,
+        ]);
+    }
+
     private function postMessage(array $payload): array
     {
         $response = Http::withToken($this->apiKey())
