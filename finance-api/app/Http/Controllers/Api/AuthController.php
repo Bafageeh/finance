@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -15,21 +16,26 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $credentials = $request->validate([
-            'login' => 'required|string|max:255',
+            'login' => 'required_without:username|string|max:255',
+            'username' => 'required_without:login|string|max:255',
             'password' => 'required|string|max:255',
         ]);
 
-        $login = trim((string) $credentials['login']);
+        $username = trim((string) ($credentials['username'] ?? $credentials['login'] ?? ''));
 
-        $user = User::query()
-            ->with('account')
-            ->where('email', $login)
-            ->orWhere('name', $login)
-            ->first();
+        $query = User::query()->with('account');
+
+        if (Schema::hasColumn('users', 'username')) {
+            $query->where('username', $username);
+        } else {
+            $query->where('name', $username);
+        }
+
+        $user = $query->first();
 
         if (! $user || ! Hash::check((string) $credentials['password'], (string) $user->password)) {
             throw ValidationException::withMessages([
-                'login' => ['بيانات الدخول غير صحيحة.'],
+                'username' => ['اسم المستخدم أو كلمة المرور غير صحيحة.'],
             ]);
         }
 
@@ -73,6 +79,7 @@ class AuthController extends Controller
             'account_name' => $user?->account?->name,
             'account_slug' => $user?->account?->slug,
             'name' => $user?->name ?? 'مستخدم النظام',
+            'username' => $user?->username,
             'email' => $user?->email,
             'phone' => null,
             'role' => 'admin',
