@@ -4,6 +4,7 @@ export interface AuthUser {
   account_name?: string | null;
   account_slug?: string | null;
   name: string;
+  username?: string | null;
   email?: string | null;
   phone?: string | null;
   role?: string | null;
