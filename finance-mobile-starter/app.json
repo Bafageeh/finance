@@ -16,11 +16,21 @@
       }
     },
     "ios": {
-      "bundleIdentifier": "com.example.financemobile"
+      "bundleIdentifier": "com.example.financemobile",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "يستخدم تطبيق التمويل بصمة الوجه لتسجيل الدخول السريع بعد أول دخول بكلمة المرور."
+      }
     },
     "plugins": [
       "expo-router",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "يستخدم تطبيق التمويل بصمة الوجه لتسجيل الدخول السريع بعد أول دخول بكلمة المرور."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
