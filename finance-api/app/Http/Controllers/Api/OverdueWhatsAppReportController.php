@@ -16,10 +16,11 @@ class OverdueWhatsAppReportController extends Controller
         $data = $request->validate([
             'to_phone' => ['nullable', 'string', 'max:30'],
             'test' => ['nullable', 'boolean'],
+            'pdf' => ['nullable', 'boolean'],
         ]);
 
         $toPhone = $data['to_phone'] ?? env('FINANCE_OVERDUE_REPORT_WHATSAPP_TO', '0500007650');
-        $result = $service->send($toPhone, (bool) ($data['test'] ?? false));
+        $result = $service->send($toPhone, (bool) ($data['test'] ?? false), (bool) ($data['pdf'] ?? false));
 
         return response()->json($result);
     }
@@ -34,6 +35,6 @@ class OverdueWhatsAppReportController extends Controller
 
         $provided = (string) $request->header('X-Finance-Secret', $request->input('secret', ''));
 
-        abort_unless(hash_equals($secret, $provided), 403, 'غير مصرح.');
+        abort_unless(hash_equals($secret, $provided), 403, 'Forbidden');
     }
 }
