@@ -8,17 +8,37 @@ use Throwable;
 
 class OverdueWhatsAppReportService
 {
-    public function __construct(private readonly WhatsAppService $whatsApp)
-    {
+    public function __construct(
+        private readonly WhatsAppService $whatsApp,
+        private readonly OverduePdfReportService $pdfReport,
+    ) {
     }
 
-    public function send(string $toPhone, bool $test = false): array
+    public function send(string $toPhone, bool $test = false, bool $pdf = false): array
     {
         $report = $this->buildReport($test);
+
+        if ($pdf) {
+            $file = $this->pdfReport->generate($report['late_clients'], $report['summary'], $test);
+            $caption = ($test ? 'تجربة إرسال للتقرير اليومي' . "\n" : '')
+                . 'تقرير المتأخرين باستثناء المتعثرين - ' . Carbon::today()->format('Y-m-d');
+            $response = $this->whatsApp->sendDocument($toPhone, $file['url'], $file['filename'], $caption);
+
+            return [
+                'ok' => true,
+                'type' => 'pdf',
+                'to_phone' => $this->whatsApp->normalizeSaudiPhone($toPhone),
+                'summary' => $report['summary'],
+                'file' => $file,
+                'provider_response' => $response,
+            ];
+        }
+
         $response = $this->whatsApp->sendText($toPhone, $report['body']);
 
         return [
             'ok' => true,
+            'type' => 'text',
             'to_phone' => $this->whatsApp->normalizeSaudiPhone($toPhone),
             'summary' => $report['summary'],
             'provider_response' => $response,
@@ -85,15 +105,15 @@ class OverdueWhatsAppReportService
         } else {
             foreach ($lateClients as $index => $client) {
                 $line = ($index + 1) . '. ' . $client['name']
-                    . ' — ' . number_format((float) $client['amount'], 2) . ' ريال'
-                    . ' — عدد الأقساط: ' . $client['count'];
+                    . ' - ' . number_format((float) $client['amount'], 2) . ' ريال'
+                    . ' - عدد الأقساط: ' . $client['count'];
 
                 if (! empty($client['oldest_due'])) {
-                    $line .= ' — أقدم استحقاق: ' . $client['oldest_due'];
+                    $line .= ' - أقدم استحقاق: ' . $client['oldest_due'];
                 }
 
                 if (! empty($client['phone'])) {
-                    $line .= ' — جوال: ' . $client['phone'];
+                    $line .= ' - جوال: ' . $client['phone'];
                 }
 
                 $lines[] = $line;
@@ -102,6 +122,7 @@ class OverdueWhatsAppReportService
 
         return [
             'body' => implode("\n", $lines),
+            'late_clients' => $lateClients,
             'summary' => [
                 'late_clients_count' => count($lateClients),
                 'total_overdue_amount' => $totalAmount,
