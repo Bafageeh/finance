@@ -14,9 +14,10 @@ class OverduePdfReportService
         }
 
         $directory = public_path('reports/overdue');
-        if (! is_dir($directory)) {
-            mkdir($directory, 0775, true);
-        }
+        $this->ensureDirectory($directory);
+
+        $tempDirectory = storage_path('app/mpdf-temp');
+        $this->ensureDirectory($tempDirectory);
 
         $date = Carbon::today()->format('Y-m-d');
         $filename = 'finance-overdue-report-' . $date . '-' . now()->format('His') . '.pdf';
@@ -31,7 +32,7 @@ class OverduePdfReportService
             'margin_right' => 10,
             'margin_bottom' => 14,
             'margin_left' => 10,
-            'tempDir' => storage_path('app/mpdf-temp'),
+            'tempDir' => $tempDirectory,
         ]);
 
         $mpdf->SetDirectionality('rtl');
@@ -46,6 +47,17 @@ class OverduePdfReportService
             'filename' => $filename,
             'url' => rtrim((string) env('APP_URL', url('/')), '/') . '/reports/overdue/' . $filename,
         ];
+    }
+
+    private function ensureDirectory(string $directory): void
+    {
+        if (! is_dir($directory) && ! mkdir($directory, 0775, true) && ! is_dir($directory)) {
+            throw new RuntimeException('تعذر إنشاء مجلد التقرير: ' . $directory);
+        }
+
+        if (! is_writable($directory)) {
+            throw new RuntimeException('مجلد التقرير غير قابل للكتابة: ' . $directory);
+        }
     }
 
     private function html(array $lateClients, array $summary, bool $test): string
