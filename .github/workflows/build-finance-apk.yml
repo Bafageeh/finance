@@ -1,0 +1,74 @@
+name: Build Finance APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'finance-mobile-starter/**'
+      - '.github/workflows/build-finance-apk.yml'
+
+jobs:
+  android-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    defaults:
+      run:
+        working-directory: finance-mobile-starter
+
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      API_URL: https://finance.pm.sa/api/v1
+      EXPO_PUBLIC_API_URL: https://finance.pm.sa/api/v1
+      EXPO_PUBLIC_API_BASE_URL: https://finance.pm.sa/api/v1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: finance-mobile-starter/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Prebuild Android project
+        run: npx expo prebuild --platform android --clean --non-interactive
+
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x ./gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: |
+          mkdir -p ../apk-output
+          cp android/app/build/outputs/apk/debug/app-debug.apk ../apk-output/finance-debug-${{ github.run_number }}.apk
+          ls -lah ../apk-output
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-debug-apk
+          path: finance-mobile-starter/apk-output/*.apk
+          if-no-files-found: error
+          retention-days: 14
