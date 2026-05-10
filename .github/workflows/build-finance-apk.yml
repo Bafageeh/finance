@@ -2,6 +2,11 @@ name: Build Finance APK
 
 on:
   workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'API base URL for the APK'
+        required: true
+        default: 'https://finance.pm.sa/api/v1'
   pull_request:
     branches:
       - main
@@ -15,6 +20,10 @@ on:
       - 'finance-mobile-starter/**'
       - '.github/workflows/build-finance-apk.yml'
 
+concurrency:
+  group: finance-apk-build
+  cancel-in-progress: true
+
 jobs:
   android-apk:
     name: Build Android APK
@@ -24,13 +33,6 @@ jobs:
     defaults:
       run:
         working-directory: finance-mobile-starter
-
-    env:
-      CI: '1'
-      EXPO_NO_TELEMETRY: '1'
-      API_URL: https://finance.pm.sa/api/v1
-      EXPO_PUBLIC_API_URL: https://finance.pm.sa/api/v1
-      EXPO_PUBLIC_API_BASE_URL: https://finance.pm.sa/api/v1
 
     steps:
       - name: Checkout repository
@@ -48,33 +50,53 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: npm install
 
-      - name: Prebuild Android project
+      - name: Configure API URL
+        shell: bash
+        run: |
+          API_URL="${{ github.event.inputs.api_url }}"
+          if [ -z "$API_URL" ]; then
+            API_URL="https://finance.pm.sa/api/v1"
+          fi
+          cat > .env <<EOF
+          EXPO_PUBLIC_API_URL=$API_URL
+          EXPO_PUBLIC_API_BASE_URL=$API_URL
+          API_URL=$API_URL
+          EOF
+          cat .env
+
+      - name: Generate native Android project
         run: npx expo prebuild --platform android --clean --non-interactive
 
-      - name: Build debug APK
+      - name: Build release APK with bundled JS
         run: |
           cd android
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Rename APK
+      - name: Prepare APK artifact
+        shell: bash
         run: |
           mkdir -p ../apk-output
-          cp android/app/build/outputs/apk/debug/app-debug.apk ../apk-output/finance-debug-${{ github.run_number }}.apk
-          ls -lah ../apk-output
+          APK_PATH="$(find android/app/build/outputs/apk/release -name '*.apk' | head -n 1)"
+          if [ -z "$APK_PATH" ]; then
+            echo "No release APK was generated."
+            find android/app/build/outputs -type f || true
+            exit 1
+          fi
+          cp "$APK_PATH" ../apk-output/finance.apk
+          ls -lh ../apk-output/finance.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: finance-debug-apk
-          path: finance-mobile-starter/apk-output/*.apk
+          name: finance-apk
+          path: finance-mobile-starter/apk-output/finance.apk
           if-no-files-found: error
           retention-days: 14
