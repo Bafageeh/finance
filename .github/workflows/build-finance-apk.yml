@@ -2,6 +2,12 @@ name: Build Finance APK
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'finance-mobile-starter/**'
+      - '.github/workflows/build-finance-apk.yml'
   push:
     branches:
       - main
