@@ -12,28 +12,30 @@ class PartnerClientController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $this->ensureAli($request);
+        $aliAccountId = $this->ensureAli($request);
 
         $clients = Client::withoutGlobalScope('account')
             ->with(['payments' => fn ($query) => $query->withoutGlobalScope('account')])
             ->where('profit_share', 'shared')
+            ->when($aliAccountId, fn ($query) => $query->where('account_id', '!=', $aliAccountId))
             ->orderByDesc('created_at')
             ->get();
 
         $accountNames = $this->accountNamesFor($clients);
 
         return response()->json([
-            'data' => $clients->map(fn (Client $client) => $this->formatPartnerClient($client, $accountNames, false))->values(),
+            'data' => $clients->map(fn (Client $client) => $this->formatPartnerClient($client, $accountNames, true))->values(),
         ]);
     }
 
     public function show(Request $request, int|string $client): JsonResponse
     {
-        $this->ensureAli($request);
+        $aliAccountId = $this->ensureAli($request);
 
         $clientModel = Client::withoutGlobalScope('account')
             ->with(['payments' => fn ($query) => $query->withoutGlobalScope('account')])
             ->where('profit_share', 'shared')
+            ->when($aliAccountId, fn ($query) => $query->where('account_id', '!=', $aliAccountId))
             ->whereKey($client)
             ->firstOrFail();
 
@@ -44,13 +46,15 @@ class PartnerClientController extends Controller
         ]);
     }
 
-    private function ensureAli(Request $request): void
+    private function ensureAli(Request $request): ?int
     {
         $user = $request->user()?->loadMissing('account');
         $email = strtolower((string) ($user?->email ?? ''));
         $accountSlug = strtolower((string) ($user?->account?->slug ?? ''));
 
         abort_if($email !== 'ali@pm.sa' && $accountSlug !== 'ali', 403, 'هذه الشاشة مخصصة لحساب علي فقط.');
+
+        return $user?->account_id ? (int) $user->account_id : null;
     }
 
     private function accountNamesFor($clients): array
