@@ -4,6 +4,9 @@ import { Client, ClientSummary, PaymentScheduleItem, ProfitShare, StatsData } fr
 export interface ClientAlertInfo {
   overdueCount: number;
   overdueAmount: number;
+  previousDueAmount: number;
+  paidAmount: number;
+  monthlyInstallment: number;
   nextUpcoming: PaymentScheduleItem | null;
   daysUntilNext: number | null;
 }
@@ -27,6 +30,22 @@ function parseDateOnly(value: unknown): Date | null {
   if (Number.isNaN(date.getTime())) return null;
   date.setHours(0, 0, 0, 0);
   return date;
+}
+
+function todayOnly(referenceDate = new Date()): Date {
+  const today = new Date(referenceDate);
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+function isBeforeToday(dateString: unknown, referenceDate = new Date()): boolean {
+  const dueDate = parseDateOnly(dateString);
+  if (!dueDate) return false;
+  return dueDate < todayOnly(referenceDate);
+}
+
+function sortByDueDateAsc(a: PaymentScheduleItem, b: PaymentScheduleItem): number {
+  return String(a.due_date || '').localeCompare(String(b.due_date || ''));
 }
 
 function normalizePeriodKeyValue(value: unknown): string | null {
@@ -115,6 +134,40 @@ function getPaymentStatus(recordedPaid: number, expected: number): 'paid' | 'par
   return 'unpaid';
 }
 
+function getClientMonthlyInstallment(client: Client): number {
+  const summaryMonthly = numeric(client.summary?.monthly_installment, NaN);
+  if (Number.isFinite(summaryMonthly) && summaryMonthly > 0) return round2(summaryMonthly);
+
+  const firstScheduleAmount = getItemExpectedAmount(client.schedule?.[0] as PaymentScheduleItem);
+  if (firstScheduleAmount > 0) return firstScheduleAmount;
+
+  return computeMonthlyInstallment(
+    numeric(client.cost),
+    numeric(client.rate),
+    numeric(client.months),
+    numeric(client.bond_cost, 74.75),
+    numeric(client.bond_total, 0),
+  );
+}
+
+function getClientTotalPaidAmount(client: Client): number {
+  const summaryPaid = numeric(client.summary?.paid_amount, NaN);
+  if (Number.isFinite(summaryPaid)) return round2(summaryPaid);
+  return getPaidAmount(client.schedule || []);
+}
+
+function getPreviousDueInstallmentsTotal(client: Client, referenceDate = new Date()): number {
+  return round2(
+    getPreviousDueScheduleItems(client, referenceDate)
+      .reduce((sum, item) => sum + getItemExpectedAmount(item), 0),
+  );
+}
+
+function ceilInstallments(value: number, monthlyInstallment: number): number {
+  if (value <= 0.01 || monthlyInstallment <= 0) return 0;
+  return Math.max(0, Math.ceil(Math.max(0, value - 0.01) / monthlyInstallment));
+}
+
 export function computeMonthlyInstallment(
   cost: number,
   rate: number,
@@ -159,7 +212,7 @@ export function buildPaymentSchedule(
     const dueDate = addMonthsKeepingDay(firstDue, index);
     const periodKey = `${dueDate.getFullYear()}-${padMonth(dueDate.getMonth() + 1)}`;
     const monthNumber = index + 1;
-    const existing = existingSchedule.find((item) => item.period_key === periodKey || item.month === monthNumber);
+    const existing = existingSchedule.find((item) => isExistingScheduleItemForCurrentContract(item, monthNumber, periodKey, firstDue));
     const expected = round2(installmentAmount);
     const recordedPaid = round2(numeric(existing?.recorded_paid_amount ?? existing?.paid_amount));
     const coveredAmount = round2(Math.min(expected, recordedPaid));
@@ -206,7 +259,7 @@ export function getProfitSharePercentages(profitShare: ProfitShare | null | unde
   return { ahmadPct: 0.65, aliPct: 0.35 };
 }
 
-export function buildClientSummary(client: Omit<Client, 'summary'> & { schedule?: PaymentScheduleItem[] }): ClientSummary {
+export function buildClientSummary(client: Omit<Client, 'summary'> & { summary?: ClientSummary; schedule?: PaymentScheduleItem[] }): ClientSummary {
   const bondCost = client.bond_cost ?? 74.75;
   const bondTotal = computeBondTotal(client.cost, client.rate, client.months, bondCost, client.bond_total);
   const monthlyInstallment = computeMonthlyInstallment(client.cost, client.rate, client.months, bondCost, client.bond_total);
@@ -260,30 +313,65 @@ export function normalizeClient(client: Client): Client {
   };
 }
 
-export function getOverdueScheduleItems(client: Client): PaymentScheduleItem[] {
+export function getPreviousDueScheduleItems(client: Client, referenceDate = new Date()): PaymentScheduleItem[] {
   if (!client.schedule?.length) return [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
-  return client.schedule.filter((item) => {
-    const dueDate = new Date(item.due_date);
-    if (Number.isNaN(dueDate.getTime())) return false;
-    dueDate.setHours(0, 0, 0, 0);
-    return dueDate <= today && getItemRemainingDue(item) > 0.01;
-  });
+  return client.schedule
+    .filter((item) => isBeforeToday(item.due_date, referenceDate))
+    .sort(sortByDueDateAsc);
+}
+
+export function calculateClientOverdueInfo(client: Client, referenceDate = new Date()): Pick<ClientAlertInfo, 'overdueCount' | 'overdueAmount' | 'previousDueAmount' | 'paidAmount' | 'monthlyInstallment'> {
+  const monthlyInstallment = getClientMonthlyInstallment(client);
+  const previousDueAmount = getPreviousDueInstallmentsTotal(client, referenceDate);
+  const paidAmount = getClientTotalPaidAmount(client);
+  const overdueAmount = round2(Math.max(0, previousDueAmount - paidAmount));
+  const overdueCount = ceilInstallments(overdueAmount, monthlyInstallment);
+
+  return {
+    overdueCount,
+    overdueAmount,
+    previousDueAmount,
+    paidAmount,
+    monthlyInstallment,
+  };
+}
+
+export function getOverdueScheduleItems(client: Client): PaymentScheduleItem[] {
+  const overdueInfo = calculateClientOverdueInfo(client);
+
+  if (overdueInfo.overdueAmount <= 0.01 || overdueInfo.overdueCount <= 0) {
+    return [];
+  }
+
+  let remainingOverdueAmount = overdueInfo.overdueAmount;
+
+  return getPreviousDueScheduleItems(client)
+    .slice(0, overdueInfo.overdueCount)
+    .map((item) => {
+      const expectedAmount = getItemExpectedAmount(item) || overdueInfo.monthlyInstallment;
+      const remainingDue = round2(Math.min(Math.max(expectedAmount, 0), remainingOverdueAmount));
+      remainingOverdueAmount = round2(Math.max(0, remainingOverdueAmount - remainingDue));
+
+      return {
+        ...item,
+        is_paid: false,
+        payment_status: remainingDue + 0.01 >= expectedAmount ? 'unpaid' : 'partial',
+        remaining_due: remainingDue,
+        covered_amount: round2(Math.max(0, expectedAmount - remainingDue)),
+      };
+    });
 }
 
 export function getUpcomingScheduleItems(client: Client, days = 7): PaymentScheduleItem[] {
   if (!client.schedule?.length) return [];
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = todayOnly();
   const maxDate = new Date(today);
   maxDate.setDate(maxDate.getDate() + days);
 
   return client.schedule.filter((item) => {
-    const dueDate = new Date(item.due_date);
-    if (Number.isNaN(dueDate.getTime())) return false;
-    dueDate.setHours(0, 0, 0, 0);
+    const dueDate = parseDateOnly(item.due_date);
+    if (!dueDate) return false;
     return dueDate > today && dueDate <= maxDate && getItemRemainingDue(item) > 0.01;
   });
 }
@@ -303,14 +391,12 @@ export function getDaysUntil(dateString: string): number | null {
 }
 
 export function getClientAlertInfo(client: Client): ClientAlertInfo {
-  const overdueItems = getOverdueScheduleItems(client);
-  const nextUpcoming = getNextUnpaidScheduleItem(client);
-  const overdueAmount = round2(overdueItems.reduce((sum, item) => sum + getItemRemainingDue(item), 0));
+  const overdue = calculateClientOverdueInfo(client);
+  const nextUpcoming = getUpcomingScheduleItems(client, 3650)[0] || null;
   const daysUntilNext = nextUpcoming ? getDaysUntil(nextUpcoming.due_date) : null;
 
   return {
-    overdueCount: overdueItems.length,
-    overdueAmount,
+    ...overdue,
     nextUpcoming,
     daysUntilNext,
   };
