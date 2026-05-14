@@ -112,7 +112,8 @@ function getFirstInstallmentDate(contractDate: string, firstInstallmentDate?: st
   return addMonthsKeepingDay(safeContract, 1);
 }
 
-function getItemExpectedAmount(item: PaymentScheduleItem): number {
+function getItemExpectedAmount(item?: PaymentScheduleItem | null): number {
+  if (!item) return 0;
   return round2(numeric(item.installment_amount ?? item.amount));
 }
 
@@ -138,7 +139,7 @@ function getClientMonthlyInstallment(client: Client): number {
   const summaryMonthly = numeric(client.summary?.monthly_installment, NaN);
   if (Number.isFinite(summaryMonthly) && summaryMonthly > 0) return round2(summaryMonthly);
 
-  const firstScheduleAmount = getItemExpectedAmount(client.schedule?.[0] as PaymentScheduleItem);
+  const firstScheduleAmount = getItemExpectedAmount(client.schedule?.[0]);
   if (firstScheduleAmount > 0) return firstScheduleAmount;
 
   return computeMonthlyInstallment(
