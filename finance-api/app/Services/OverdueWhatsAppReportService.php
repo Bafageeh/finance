@@ -60,27 +60,18 @@ class OverdueWhatsAppReportService
                 continue;
             }
 
-            $overdue = collect($client->generateSchedule())
-                ->filter(function (array $slot) use ($today) {
-                    try {
-                        return (float) ($slot['remaining_due'] ?? 0) > 0.01
-                            && Carbon::parse($slot['due_date'])->lte($today);
-                    } catch (Throwable) {
-                        return false;
-                    }
-                })
-                ->values();
+            $overdueInfo = $this->calculateOverdueInfo($client, $today);
 
-            if ($overdue->isEmpty()) {
+            if ($overdueInfo['overdue_amount'] <= 0.01 || $overdueInfo['overdue_count'] <= 0) {
                 continue;
             }
 
             $lateClients[] = [
                 'name' => (string) $client->name,
                 'phone' => (string) ($client->phone ?? ''),
-                'count' => $overdue->count(),
-                'amount' => round($overdue->sum(fn ($slot) => (float) ($slot['remaining_due'] ?? $slot['amount'] ?? 0)), 2),
-                'oldest_due' => optional($overdue->sortBy('due_date')->first())['due_date'] ?? null,
+                'count' => $overdueInfo['overdue_count'],
+                'amount' => $overdueInfo['overdue_amount'],
+                'oldest_due' => $overdueInfo['oldest_due'],
             ];
         }
 
@@ -127,6 +118,37 @@ class OverdueWhatsAppReportService
                 'late_clients_count' => count($lateClients),
                 'total_overdue_amount' => $totalAmount,
             ],
+        ];
+    }
+
+    private function calculateOverdueInfo(Client $client, Carbon $today): array
+    {
+        $monthlyInstallment = round((float) $client->getMonthlyInstallment(), 2);
+        $previousDueSlots = collect($client->generateSchedule())
+            ->filter(function (array $slot) use ($today) {
+                try {
+                    return ! empty($slot['due_date'])
+                        && Carbon::parse($slot['due_date'])->startOfDay()->lt($today);
+                } catch (Throwable) {
+                    return false;
+                }
+            })
+            ->values();
+
+        $previousDueAmount = round($previousDueSlots->sum(
+            fn (array $slot) => (float) ($slot['amount'] ?? $slot['installment_amount'] ?? $monthlyInstallment)
+        ), 2);
+        $paidAmount = round((float) $client->getPaidAmount(), 2);
+        $overdueAmount = round(max(0, $previousDueAmount - $paidAmount), 2);
+        $overdueCount = $overdueAmount > 0.01 && $monthlyInstallment > 0
+            ? (int) ceil(max(0, $overdueAmount - 0.01) / $monthlyInstallment)
+            : 0;
+        $oldestSlot = $previousDueSlots->sortBy('due_date')->first();
+
+        return [
+            'overdue_amount' => $overdueAmount,
+            'overdue_count' => $overdueCount,
+            'oldest_due' => is_array($oldestSlot) ? ($oldestSlot['due_date'] ?? null) : null,
         ];
     }
 }
