@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { PropsWithChildren, ReactNode } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/utils/theme';
 
@@ -64,11 +64,24 @@ export function Screen({
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-      {scrollable ? (
-        <ScrollView contentContainerStyle={styles.content}>{content}</ScrollView>
-      ) : (
-        <View style={styles.content}>{content}</View>
-      )}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+        style={styles.keyboardAvoider}
+      >
+        {scrollable ? (
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
+          >
+            {content}
+          </ScrollView>
+        ) : (
+          <View style={styles.content}>{content}</View>
+        )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -78,11 +91,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  keyboardAvoider: {
+    flex: 1,
+  },
   content: {
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 20,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 36,
   },
   header: {
     marginBottom: 16,
