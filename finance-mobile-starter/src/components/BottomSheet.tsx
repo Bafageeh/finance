@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { PropsWithChildren, ReactNode } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -22,20 +23,26 @@ interface BottomSheetProps extends PropsWithChildren {
 }
 
 export function BottomSheet({ visible, onClose, title, subtitle, footer, children }: BottomSheetProps) {
+  function closeKeyboardAndSheet() {
+    Keyboard.dismiss();
+    onClose();
+  }
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={closeKeyboardAndSheet} statusBarTranslucent>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
         style={styles.flex}
       >
-        <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable style={styles.backdrop} onPress={closeKeyboardAndSheet}>
           <Pressable style={styles.sheet} onPress={(event) => event.stopPropagation()}>
             <View style={styles.handleWrap}>
               <View style={styles.handle} />
             </View>
 
             <View style={styles.headerRow}>
-              <TouchableOpacity style={styles.closeButton} accessibilityLabel="إغلاق" onPress={onClose}>
+              <TouchableOpacity style={styles.closeButton} accessibilityLabel="إغلاق" onPress={closeKeyboardAndSheet}>
                 <Ionicons name="close" size={18} color={colors.textMuted} />
               </TouchableOpacity>
 
@@ -49,6 +56,7 @@ export function BottomSheet({ visible, onClose, title, subtitle, footer, childre
               style={styles.scroll}
               contentContainerStyle={styles.scrollContent}
               keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
               showsVerticalScrollIndicator={false}
             >
               {children}
@@ -72,7 +80,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.28)',
   },
   sheet: {
-    maxHeight: '88%',
+    maxHeight: '82%',
     minHeight: 260,
     backgroundColor: colors.surface,
     borderTopLeftRadius: 28,
@@ -127,16 +135,17 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 0,
+    flexShrink: 1,
   },
   scrollContent: {
     paddingHorizontal: 18,
-    paddingBottom: 16,
+    paddingBottom: 28,
     gap: 12,
   },
   footer: {
     paddingHorizontal: 18,
     paddingTop: 12,
-    paddingBottom: 20,
+    paddingBottom: Platform.OS === 'ios' ? 26 : 18,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.surface,
