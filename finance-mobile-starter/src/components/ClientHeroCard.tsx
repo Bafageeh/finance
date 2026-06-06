@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 import { Client, ClientStatus } from '@/types/api';
-import { formatCurrency, getInitials } from '@/utils/format';
+import { formatCurrency } from '@/utils/format';
 import { colors } from '@/utils/theme';
 import { IconPillButton } from './IconPillButton';
 
@@ -74,10 +74,6 @@ export function ClientHeroCard({
         </View>
 
         <View style={styles.identitySide}>
-          <View style={[styles.avatar, client.has_court ? styles.avatarCourt : styles.avatarDefault]}>
-            <Text style={[styles.avatarText, client.has_court && styles.avatarTextCourt]}>{getInitials(client.name)}</Text>
-          </View>
-
           <View style={styles.identityText}>
             <View style={styles.nameRow}>
               <Text style={styles.name} numberOfLines={1}>
@@ -237,32 +233,7 @@ const styles = StyleSheet.create({
   },
   identitySide: {
     flex: 1,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 10,
     minWidth: 0,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  avatarDefault: {
-    backgroundColor: '#f1f0ee',
-  },
-  avatarCourt: {
-    backgroundColor: colors.courtSoft,
-  },
-  avatarText: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  avatarTextCourt: {
-    color: colors.court,
   },
   identityText: {
     flex: 1,
