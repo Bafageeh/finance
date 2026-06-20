@@ -24,6 +24,24 @@ import { colors } from '@/utils/theme';
 
 type ExpandedSection = 'profit' | 'basic';
 
+function parseDueDate(value: unknown): Date | null {
+  if (!value) return null;
+  const date = new Date(String(value).slice(0, 10));
+  if (Number.isNaN(date.getTime())) return null;
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function isPastUnpaidInstallment(item: PaymentScheduleItem): boolean {
+  if (item.is_paid) return false;
+  const dueDate = parseDueDate(item.due_date);
+  if (!dueDate) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return dueDate < today;
+}
+
 export default function ClientDetailsScreen() {
   const params = useLocalSearchParams<{ id: string; focusPeriod?: string }>();
   const { session } = useSession();
@@ -198,7 +216,8 @@ export default function ClientDetailsScreen() {
 
           <AppCard title="جدول الأقساط" style={styles.installmentsCard}>
             {client.schedule?.length ? client.schedule.map((item) => {
-              const state = item.is_paid ? 'paid' : overdueItems.some((overdue) => overdue.period_key === item.period_key) ? 'late' : item.period_key === firstUpcomingKey ? 'next' : 'upcoming';
+              const isLateByDate = isPastUnpaidInstallment(item);
+              const state = item.is_paid ? 'paid' : isLateByDate ? 'late' : item.period_key === firstUpcomingKey ? 'next' : 'upcoming';
               return <InstallmentCard key={item.period_key} item={item} state={state} onPress={() => openInspectModal(item)} onRecordPress={() => openPaymentModal(item)} onUndoPress={() => void handleRemovePayment(item)} />;
             }) : <EmptyState title="لا يوجد جدول سداد" description="سيظهر هنا جدول الأقساط بعد نجاح الجلب من الـ API أو الموك المحلي." />}
           </AppCard>
