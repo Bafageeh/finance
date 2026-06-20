@@ -1,14 +1,16 @@
 import { useIsFocused } from '@react-navigation/native';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
   RefreshControl,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ClientListItem } from '@/components/ClientListItem';
 import { ClientFilterDropdown } from '@/components/ClientFilterDropdown';
@@ -22,9 +24,11 @@ import { getClientAlertInfo } from '@/utils/finance';
 import { colors } from '@/utils/theme';
 
 const CLIENTS_PAGE_SIZE = 5;
+const LOAD_MORE_DISTANCE = 220;
 
 export default function ClientsScreen() {
   const isFocused = useIsFocused();
+  const loadMoreLockRef = useRef(false);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [filter, setFilter] = useState<ClientFilter>('all');
@@ -107,6 +111,7 @@ export default function ClientsScreen() {
   );
 
   useEffect(() => {
+    loadMoreLockRef.current = false;
     setVisibleCount(CLIENTS_PAGE_SIZE);
   }, [clients, filter, query, showDoneClients]);
 
@@ -115,9 +120,37 @@ export default function ClientsScreen() {
     [displayClients, visibleCount],
   );
 
-  const loadMoreClients = () => {
-    setVisibleCount((current) => Math.min(current + CLIENTS_PAGE_SIZE, displayClients.length));
-  };
+  const hasMoreClients = visibleClients.length < displayClients.length;
+
+  const loadMoreClients = useCallback(() => {
+    if (loadMoreLockRef.current) return;
+
+    setVisibleCount((current) => {
+      if (current >= displayClients.length) return current;
+
+      loadMoreLockRef.current = true;
+      setTimeout(() => {
+        loadMoreLockRef.current = false;
+      }, 180);
+
+      return Math.min(current + CLIENTS_PAGE_SIZE, displayClients.length);
+    });
+  }, [displayClients.length]);
+
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (!hasMoreClients) return;
+
+      const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+      const reachedBottom =
+        layoutMeasurement.height + contentOffset.y >= contentSize.height - LOAD_MORE_DISTANCE;
+
+      if (reachedBottom) {
+        loadMoreClients();
+      }
+    },
+    [hasMoreClients, loadMoreClients],
+  );
 
   const listHeader = (
     <View style={styles.headerStack}>
@@ -156,12 +189,19 @@ export default function ClientsScreen() {
     </View>
   );
 
-  const listFooter =
-    visibleClients.length < displayClients.length ? (
-      <View style={styles.loadMoreHint}>
-        <Text style={styles.loadMoreText}>يتم تحميل ٥ عملاء إضافيين عند النزول</Text>
-      </View>
-    ) : null;
+  const listFooter = hasMoreClients ? (
+    <View style={styles.loadMoreHint}>
+      <Text style={styles.loadMoreText}>انزل لأسفل لتحميل ٥ عملاء إضافيين</Text>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={styles.loadMoreButton}
+        onPress={loadMoreClients}
+      >
+        <Ionicons name="chevron-down" size={16} color="#111" />
+        <Text style={styles.loadMoreButtonText}>تحميل المزيد الآن</Text>
+      </TouchableOpacity>
+    </View>
+  ) : null;
 
   return (
     <Screen
@@ -216,8 +256,10 @@ export default function ClientsScreen() {
               }}
             />
           }
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           onEndReached={loadMoreClients}
-          onEndReachedThreshold={0.35}
+          onEndReachedThreshold={0.08}
           initialNumToRender={CLIENTS_PAGE_SIZE}
           maxToRenderPerBatch={CLIENTS_PAGE_SIZE}
           windowSize={5}
@@ -340,6 +382,7 @@ const styles = StyleSheet.create({
   },
   loadMoreHint: {
     alignItems: 'center',
+    gap: 8,
     paddingTop: 8,
     paddingBottom: 12,
   },
@@ -348,6 +391,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     textAlign: 'center',
+  },
+  loadMoreButton: {
+    minHeight: 40,
+    borderRadius: 18,
+    backgroundColor: '#f4f1ed',
+    borderWidth: 1,
+    borderColor: '#e0d9cf',
+    paddingHorizontal: 16,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  loadMoreButtonText: {
+    color: '#111',
+    fontSize: 13,
+    fontWeight: '800',
   },
   separator: {
     height: 10,
