@@ -7,7 +7,8 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View, TouchableOpacity} from 'react-native';
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ClientListItem } from '@/components/ClientListItem';
 import { ClientFilterDropdown } from '@/components/ClientFilterDropdown';
@@ -20,6 +21,8 @@ import { clientMatchesSearch } from '@/utils/format';
 import { getClientAlertInfo } from '@/utils/finance';
 import { colors } from '@/utils/theme';
 
+const CLIENTS_PAGE_SIZE = 5;
+
 export default function ClientsScreen() {
   const isFocused = useIsFocused();
 
@@ -27,6 +30,7 @@ export default function ClientsScreen() {
   const [filter, setFilter] = useState<ClientFilter>('all');
   const [showDoneClients, setShowDoneClients] = useState(false);
   const [query, setQuery] = useState('');
+  const [visibleCount, setVisibleCount] = useState(CLIENTS_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +70,7 @@ export default function ClientsScreen() {
     () =>
       [...filteredClients].sort((a, b) => {
         const getTime = (client: typeof filteredClients[number]) => {
-          const source = client as unknown as unknown as Record<string, unknown>;
+          const source = client as unknown as Record<string, unknown>;
           const raw = source.contract_date ?? source.created_at ?? source.updated_at;
 
           if (typeof raw === 'string' && raw.trim().length > 0) {
@@ -102,6 +106,19 @@ export default function ClientsScreen() {
     [filter, showDoneClients, sortedFilteredClients],
   );
 
+  useEffect(() => {
+    setVisibleCount(CLIENTS_PAGE_SIZE);
+  }, [clients, filter, query, showDoneClients]);
+
+  const visibleClients = useMemo(
+    () => displayClients.slice(0, visibleCount),
+    [displayClients, visibleCount],
+  );
+
+  const loadMoreClients = () => {
+    setVisibleCount((current) => Math.min(current + CLIENTS_PAGE_SIZE, displayClients.length));
+  };
+
   const listHeader = (
     <View style={styles.headerStack}>
       <View style={styles.searchRow}>
@@ -133,9 +150,18 @@ export default function ClientsScreen() {
         <Text style={styles.summaryText}>إجمالي {clients.length}</Text>
         <View style={styles.dot} />
         <Text style={styles.summaryText}>ظاهر {displayClients.length}</Text>
+        <View style={styles.dot} />
+        <Text style={styles.summaryText}>محمل {visibleClients.length}</Text>
       </View>
     </View>
   );
+
+  const listFooter =
+    visibleClients.length < displayClients.length ? (
+      <View style={styles.loadMoreHint}>
+        <Text style={styles.loadMoreText}>يتم تحميل ٥ عملاء إضافيين عند النزول</Text>
+      </View>
+    ) : null;
 
   return (
     <Screen
@@ -163,7 +189,7 @@ export default function ClientsScreen() {
 
       {!loading && !error ? (
         <FlatList
-          data={displayClients}
+          data={visibleClients}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => (
             <ClientListItem
@@ -172,6 +198,7 @@ export default function ClientsScreen() {
             />
           )}
           ListHeaderComponent={listHeader}
+          ListFooterComponent={listFooter}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
           ListEmptyComponent={
             <EmptyState
@@ -184,10 +211,18 @@ export default function ClientsScreen() {
               refreshing={refreshing}
               onRefresh={() => {
                 setRefreshing(true);
+                setVisibleCount(CLIENTS_PAGE_SIZE);
                 void loadData(true);
               }}
             />
           }
+          onEndReached={loadMoreClients}
+          onEndReachedThreshold={0.35}
+          initialNumToRender={CLIENTS_PAGE_SIZE}
+          maxToRenderPerBatch={CLIENTS_PAGE_SIZE}
+          windowSize={5}
+          updateCellsBatchingPeriod={80}
+          removeClippedSubviews
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
@@ -302,6 +337,17 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 90,
+  },
+  loadMoreHint: {
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  loadMoreText: {
+    color: '#8d8579',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   separator: {
     height: 10,
