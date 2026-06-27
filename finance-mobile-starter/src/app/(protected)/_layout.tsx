@@ -28,6 +28,7 @@ export default function ProtectedLayout() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="clients/[id]" options={{ presentation: 'card' }} />
       <Stack.Screen name="clients/form" options={{ presentation: 'card' }} />
+      <Stack.Screen name="account/create-user" options={{ presentation: 'card' }} />
       <Stack.Screen name="alerts/[type]" options={{ presentation: 'card' }} />
       <Stack.Screen name="collections/index" options={{ presentation: 'card' }} />
       <Stack.Screen name="stats/details" options={{ presentation: 'card' }} />
