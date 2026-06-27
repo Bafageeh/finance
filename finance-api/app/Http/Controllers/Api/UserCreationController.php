@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class UserCreationController extends Controller
 {
@@ -55,7 +56,13 @@ class UserCreationController extends Controller
             'expires_at' => now()->addMinutes(10),
         ]);
 
-        $messaging->sendText($phone, "رمز التحقق لإنشاء المستخدم في تطبيق التمويل: {$code}\nصالح لمدة 10 دقائق.");
+        try {
+            $messaging->sendText($phone, "رمز التحقق لإنشاء المستخدم في تطبيق التمويل: {$code}\nصالح لمدة 10 دقائق.");
+        } catch (Throwable) {
+            throw ValidationException::withMessages([
+                'phone' => ['تعذر إرسال رمز التحقق. تأكد من الرقم وحاول مرة أخرى.'],
+            ]);
+        }
 
         return response()->json([
             'message' => 'تم إرسال رمز التحقق.',
