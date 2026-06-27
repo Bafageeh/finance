@@ -39,6 +39,31 @@ export interface AdminAccountSummary {
   users: AdminAccountUser[];
 }
 
+export interface CreateUserOtpPayload {
+  phone: string;
+  username?: string;
+}
+
+export interface CreateUserWithOtpPayload {
+  name: string;
+  username: string;
+  phone: string;
+  email?: string;
+  password: string;
+  password_confirmation: string;
+  otp: string;
+  account_id?: number | string | null;
+}
+
+export interface CreatedUserSummary {
+  id: number | string;
+  name: string;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role?: string | null;
+}
+
 function resolveApiBase(): string {
   const host = typeof window !== 'undefined' && window.location?.hostname
     ? window.location.hostname.toLowerCase()
@@ -159,6 +184,7 @@ function pickUser(raw: any): AuthUser {
     account_name: source.account_name ?? null,
     account_slug: source.account_slug ?? null,
     name: source.name ?? source.full_name ?? source.username ?? 'مستخدم النظام',
+    username: source.username ?? null,
     email: source.email ?? null,
     phone: source.phone ?? null,
     role: source.role ?? null,
@@ -256,6 +282,34 @@ export async function getAdminAccounts(): Promise<AdminAccountSummary[]> {
 
   const response = await request<ApiEnvelope<AdminAccountSummary[]> | AdminAccountSummary[]>('/admin/account-list');
   return pickEnvelopeData<AdminAccountSummary[]>(response);
+}
+
+export async function requestCreateUserOtp(payload: CreateUserOtpPayload): Promise<void> {
+  if (USE_MOCKS) return;
+
+  await request('/admin/users/otp/request', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyCreateUserOtp(payload: CreateUserWithOtpPayload): Promise<CreatedUserSummary> {
+  if (USE_MOCKS) {
+    return {
+      id: Date.now(),
+      name: payload.name,
+      username: payload.username,
+      phone: payload.phone,
+      role: 'user',
+    };
+  }
+
+  const response = await request<ApiEnvelope<CreatedUserSummary> | CreatedUserSummary>('/admin/users/otp/verify', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  return pickEnvelopeData<CreatedUserSummary>(response);
 }
 
 export async function getClients(status: ClientFilter = 'all'): Promise<Client[]> {
