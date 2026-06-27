@@ -214,6 +214,25 @@ export async function signOutRemote(): Promise<void> {
   }
 }
 
+export async function changePassword(payload: {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
+}): Promise<void> {
+  if (USE_MOCKS) return;
+
+  await requestOptional<any>(['/auth/change-password', '/auth/password', '/password/change'], {
+    method: 'POST',
+    body: JSON.stringify({
+      current_password: payload.current_password,
+      password: payload.password,
+      password_confirmation: payload.password_confirmation,
+      new_password: payload.password,
+      new_password_confirmation: payload.password_confirmation,
+    }),
+  });
+}
+
 export async function getClients(status: ClientFilter = 'all'): Promise<Client[]> {
   if (!USE_MOCKS) {
     const response = await request<ApiEnvelope<Client[]> | Client[]>(`/clients?status=${status}`);
