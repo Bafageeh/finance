@@ -33,6 +33,7 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/change-password', [AuthController::class, 'changePassword'])->middleware('throttle:6,1');
         Route::post('auth/password', [AuthController::class, 'changePassword'])->middleware('throttle:6,1');
         Route::post('password/change', [AuthController::class, 'changePassword'])->middleware('throttle:6,1');
+        Route::get('admin/account-list', [AuthController::class, 'accounts'])->middleware('throttle:20,1');
 
         Route::get('stats', [ClientController::class, 'stats']);
         Route::get('partner-clients', [PartnerClientController::class, 'index']);
