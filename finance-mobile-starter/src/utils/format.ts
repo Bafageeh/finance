@@ -1,7 +1,27 @@
 import { Client, ClientFilter, ClientStatus, ProfitShare } from '@/types/api';
 
-export function formatCurrency(value: number | null | undefined): string {
-  const safeValue = Number.isFinite(value as number) ? Number(value) : 0;
+export function toSafeNumber(value: unknown): number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value
+      .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+      .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+      .replace(/,/g, '')
+      .replace(/[^\d.-]/g, '')
+      .trim();
+    const numeric = Number(normalized);
+    return Number.isFinite(numeric) ? numeric : 0;
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+export function formatCurrency(value: unknown): string {
+  const safeValue = toSafeNumber(value);
   return `${safeValue.toLocaleString('ar-SA', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
