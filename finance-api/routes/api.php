@@ -24,6 +24,10 @@ Route::prefix('v1')->group(function () {
 
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+    Route::post('users/otp/request', [UserCreationController::class, 'requestOtp'])->middleware('throttle:6,1');
+    Route::post('users/otp/verify', [UserCreationController::class, 'verifyOtp'])->middleware('throttle:10,1');
+    Route::post('admin/users/otp/request', [UserCreationController::class, 'requestOtp'])->middleware('throttle:6,1');
+    Route::post('admin/users/otp/verify', [UserCreationController::class, 'verifyOtp'])->middleware('throttle:10,1');
 
     Route::middleware('finance.auth')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
@@ -35,8 +39,6 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/password', [AuthController::class, 'changePassword'])->middleware('throttle:6,1');
         Route::post('password/change', [AuthController::class, 'changePassword'])->middleware('throttle:6,1');
         Route::get('admin/account-list', [AuthController::class, 'accounts'])->middleware('throttle:20,1');
-        Route::post('admin/users/otp/request', [UserCreationController::class, 'requestOtp'])->middleware('throttle:6,1');
-        Route::post('admin/users/otp/verify', [UserCreationController::class, 'verifyOtp'])->middleware('throttle:10,1');
 
         Route::get('stats', [ClientController::class, 'stats']);
         Route::get('partner-clients', [PartnerClientController::class, 'index']);
