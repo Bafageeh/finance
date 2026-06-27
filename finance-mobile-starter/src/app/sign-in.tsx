@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard } from '@/components/AppCard';
@@ -109,6 +109,9 @@ export default function SignInScreen() {
             ) : null}
             <TouchableOpacity style={[styles.primaryButton, submitting && styles.buttonDisabled]} onPress={() => void handleSubmit()} disabled={submitting} activeOpacity={0.92}>
               {submitting ? <ActivityIndicator color="#fff" /> : <><Ionicons name="log-in-outline" size={18} color="#fff" /><Text style={styles.primaryButtonText}>دخول وحفظ الجلسة</Text></>}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/create-user')} activeOpacity={0.9}>
+              <Text style={styles.secondaryButtonText}>إنشاء مستخدم جديد</Text>
             </TouchableOpacity>
             {hasSavedSession ? <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowPasswordForm(false)} activeOpacity={0.9}><Text style={styles.secondaryButtonText}>الرجوع للدخول باستخدام {biometricLabel}</Text></TouchableOpacity> : null}
           </AppCard>
