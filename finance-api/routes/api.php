@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\FollowUpController;
 use App\Http\Controllers\Api\OverdueWhatsAppReportController;
 use App\Http\Controllers\Api\PartnerClientController;
 use App\Http\Controllers\Api\SafeClientImportController;
+use App\Http\Controllers\Api\UserCreationController;
 use App\Http\Controllers\Api\WhatsAppWebhookController;
 use Illuminate\Support\Facades\Route;
 
@@ -34,6 +35,8 @@ Route::prefix('v1')->group(function () {
         Route::post('auth/password', [AuthController::class, 'changePassword'])->middleware('throttle:6,1');
         Route::post('password/change', [AuthController::class, 'changePassword'])->middleware('throttle:6,1');
         Route::get('admin/account-list', [AuthController::class, 'accounts'])->middleware('throttle:20,1');
+        Route::post('admin/users/otp/request', [UserCreationController::class, 'requestOtp'])->middleware('throttle:6,1');
+        Route::post('admin/users/otp/verify', [UserCreationController::class, 'verifyOtp'])->middleware('throttle:10,1');
 
         Route::get('stats', [ClientController::class, 'stats']);
         Route::get('partner-clients', [PartnerClientController::class, 'index']);
