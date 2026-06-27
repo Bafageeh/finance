@@ -10,12 +10,20 @@ interface ClientListItemProps {
   onPress: () => void;
 }
 
+function getScheduleTime(value?: string | null) {
+  if (!value) return Number.MAX_SAFE_INTEGER;
+  const timestamp = Date.parse(String(value).slice(0, 10));
+  return Number.isFinite(timestamp) ? timestamp : Number.MAX_SAFE_INTEGER;
+}
+
 export function ClientListItem({ client, onPress }: ClientListItemProps) {
   const status = getClientDisplayStatus(client);
   const alertInfo = getClientAlertInfo(client);
   const overdueItems = getOverdueScheduleItems(client);
-  const nextPaymentItem = getNextUnpaidScheduleItem(client) || alertInfo.nextUpcoming;
-  const nextPaymentDate = nextPaymentItem?.due_date ? formatDate(nextPaymentItem.due_date) : 'لا يوجد';
+  const firstOverdueItem = [...overdueItems].sort((a, b) => getScheduleTime(a.due_date) - getScheduleTime(b.due_date))[0];
+  const paymentDisplayItem = firstOverdueItem || getNextUnpaidScheduleItem(client) || alertInfo.nextUpcoming;
+  const paymentDateLabel = firstOverdueItem ? 'أول دفعة متأخرة' : 'الدفعة القادمة';
+  const paymentDisplayDate = paymentDisplayItem?.due_date ? formatDate(paymentDisplayItem.due_date) : 'لا يوجد';
   const remainingPrincipal = Number(client.summary.remaining_principal ?? 0) || 0;
   const isLate = overdueItems.length > 0;
   const progressColor = client.has_court
@@ -87,9 +95,9 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
           </Text>
 
           <View style={styles.detailRow}>
-            <View style={styles.detailPill}>
-              <Text style={styles.detailLabel}>الدفعة القادمة</Text>
-              <Text style={styles.detailValue} numberOfLines={1}>{nextPaymentDate}</Text>
+            <View style={[styles.detailPill, firstOverdueItem && styles.detailPillLate]}>
+              <Text style={[styles.detailLabel, firstOverdueItem && styles.detailLabelLate]}>{paymentDateLabel}</Text>
+              <Text style={[styles.detailValue, firstOverdueItem && styles.detailValueLate]} numberOfLines={1}>{paymentDisplayDate}</Text>
             </View>
             <View style={styles.detailPill}>
               <Text style={styles.detailLabel}>رأس المال المتبقي</Text>
@@ -285,17 +293,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
   },
+  detailPillLate: {
+    backgroundColor: colors.dangerSoft,
+    borderColor: '#f0c7c7',
+  },
   detailLabel: {
     color: colors.textMuted,
     fontSize: 9,
     fontWeight: '800',
     textAlign: 'right',
   },
+  detailLabelLate: {
+    color: colors.danger,
+  },
   detailValue: {
     color: colors.text,
     fontSize: 11,
     fontWeight: '900',
     textAlign: 'right',
+  },
+  detailValueLate: {
+    color: colors.danger,
   },
   footerRow: {
     flexDirection: 'row',
