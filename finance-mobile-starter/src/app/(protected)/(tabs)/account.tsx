@@ -1,13 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AccordionSection } from '@/components/AccordionSection';
 import { ActionTile } from '@/components/ActionTile';
 import { AppCard } from '@/components/AppCard';
 import { InfoPill } from '@/components/InfoPill';
 import { Screen } from '@/components/Screen';
 import { useSession } from '@/contexts/auth-context';
-import { apiConfig } from '@/services/api';
+import { apiConfig, changePassword } from '@/services/api';
 import { colors } from '@/utils/theme';
 
 function maskToken(token?: string) {
@@ -20,6 +20,12 @@ export default function AccountScreen() {
   const { session, signOut, refreshProfile, isGuestSession } = useSession();
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordSheetVisible, setPasswordSheetVisible] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [openSection, setOpenSection] = useState<'session' | 'connection' | null>('session');
 
   const firstLetter = session?.user?.name?.trim()?.slice(0, 1) || 'م';
@@ -35,6 +41,24 @@ export default function AccountScreen() {
     ],
     [isGuestSession, statusLabel, statusTone],
   );
+
+  function resetPasswordForm() {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setPasswordError(null);
+  }
+
+  function openPasswordSheet() {
+    resetPasswordForm();
+    setPasswordSheetVisible(true);
+  }
+
+  function closePasswordSheet() {
+    if (changingPassword) return;
+    setPasswordSheetVisible(false);
+    resetPasswordForm();
+  }
 
   async function handleRefresh() {
     try {
@@ -57,6 +81,44 @@ export default function AccountScreen() {
       Alert.alert('تعذر تنفيذ العملية', error instanceof Error ? error.message : 'حدث خطأ غير متوقع.');
     } finally {
       setSigningOut(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    const current = currentPassword.trim();
+    const next = newPassword.trim();
+    const confirm = confirmPassword.trim();
+
+    if (!current) {
+      setPasswordError('أدخل كلمة المرور الحالية.');
+      return;
+    }
+
+    if (next.length < 6) {
+      setPasswordError('كلمة المرور الجديدة يجب أن تكون ٦ أحرف على الأقل.');
+      return;
+    }
+
+    if (next !== confirm) {
+      setPasswordError('تأكيد كلمة المرور غير مطابق.');
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+      setPasswordError(null);
+      await changePassword({
+        current_password: current,
+        password: next,
+        password_confirmation: confirm,
+      });
+      setPasswordSheetVisible(false);
+      resetPasswordForm();
+      Alert.alert('تم', 'تم تغيير الرقم السري بنجاح.');
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : 'تعذر تغيير الرقم السري.');
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -108,6 +170,14 @@ export default function AccountScreen() {
             style={styles.actionTile}
           />
           <ActionTile
+            label={changingPassword ? 'جارٍ التغيير' : 'تغيير الرقم السري'}
+            icon="key-outline"
+            onPress={openPasswordSheet}
+            tone="primary"
+            disabled={isGuestSession || changingPassword}
+            style={styles.actionTile}
+          />
+          <ActionTile
             label={signingOut ? 'جارٍ التنفيذ' : isGuestSession ? 'إعادة الجلسة' : 'تسجيل الخروج'}
             icon={isGuestSession ? 'reload-outline' : 'log-out-outline'}
             onPress={() => void handleSignOut()}
@@ -117,7 +187,7 @@ export default function AccountScreen() {
           />
         </View>
 
-        {(refreshing || signingOut) ? (
+        {(refreshing || signingOut || changingPassword) ? (
           <View style={styles.loaderRow}>
             <ActivityIndicator size="small" color={colors.primary} />
             <Text style={styles.loaderText}>يتم تنفيذ العملية الحالية...</Text>
@@ -177,6 +247,84 @@ export default function AccountScreen() {
 
         <Text style={styles.connectionHint}>هذا القسم مناسب لمراجعة مصدر البيانات بسرعة قبل اختبار الشاشات أو التأكد من أنك تعمل على البيئة الصحيحة.</Text>
       </AccordionSection>
+
+      <Modal
+        visible={passwordSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closePasswordSheet}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.passwordSheet}>
+            <View style={styles.sheetHandle} />
+
+            <View style={styles.sheetHeader}>
+              <TouchableOpacity style={styles.closeButton} onPress={closePasswordSheet} disabled={changingPassword} activeOpacity={0.85}>
+                <Ionicons name="close" size={18} color={colors.text} />
+              </TouchableOpacity>
+
+              <View style={styles.sheetTitleWrap}>
+                <Text style={styles.sheetTitle}>تغيير الرقم السري</Text>
+                <Text style={styles.sheetSubtitle}>أدخل كلمة المرور الحالية ثم الرقم السري الجديد.</Text>
+              </View>
+            </View>
+
+            <View style={styles.passwordFields}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>كلمة المرور الحالية</Text>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  secureTextEntry
+                  textAlign="right"
+                  placeholder="••••••"
+                  placeholderTextColor="#a09a91"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>الرقم السري الجديد</Text>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry
+                  textAlign="right"
+                  placeholder="٦ أحرف على الأقل"
+                  placeholderTextColor="#a09a91"
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>تأكيد الرقم السري الجديد</Text>
+                <TextInput
+                  style={styles.passwordInput}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  textAlign="right"
+                  placeholder="أعد كتابة الرقم السري"
+                  placeholderTextColor="#a09a91"
+                />
+              </View>
+            </View>
+
+            {passwordError ? <Text style={styles.passwordError}>{passwordError}</Text> : null}
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelButton} onPress={closePasswordSheet} disabled={changingPassword} activeOpacity={0.85}>
+                <Text style={styles.cancelButtonText}>إلغاء</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.saveButton, changingPassword && styles.disabledButton]} onPress={() => void handleChangePassword()} disabled={changingPassword} activeOpacity={0.9}>
+                {changingPassword ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="save-outline" size={17} color="#fff" />}
+                <Text style={styles.saveButtonText}>{changingPassword ? 'جارٍ الحفظ' : 'حفظ الرقم السري'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -265,10 +413,13 @@ const styles = StyleSheet.create({
   },
   actionGrid: {
     flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
     gap: 10,
   },
   actionTile: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '31%',
+    minWidth: 120,
   },
   loaderRow: {
     flexDirection: 'row-reverse',
@@ -335,5 +486,124 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: colors.textMuted,
     textAlign: 'right',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    justifyContent: 'center',
+    padding: 22,
+  },
+  passwordSheet: {
+    backgroundColor: colors.background,
+    borderRadius: 26,
+    padding: 18,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#ded8cf',
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  closeButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetTitleWrap: {
+    flex: 1,
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  sheetTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '900',
+    textAlign: 'right',
+  },
+  sheetSubtitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 19,
+    textAlign: 'right',
+  },
+  passwordFields: {
+    gap: 10,
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  fieldLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'right',
+  },
+  passwordInput: {
+    minHeight: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14,
+    color: colors.text,
+    fontSize: 15,
+  },
+  passwordError: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 21,
+    textAlign: 'right',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  cancelButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  saveButton: {
+    flex: 1.2,
+    minHeight: 48,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  disabledButton: {
+    opacity: 0.65,
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '900',
   },
 });
