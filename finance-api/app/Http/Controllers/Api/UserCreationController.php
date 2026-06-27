@@ -22,10 +22,6 @@ class UserCreationController extends Controller
     {
         $actor = $request->user();
 
-        if (! $this->isAdmin($actor)) {
-            return response()->json(['message' => 'هذه الصلاحية متاحة للمدير فقط.'], 403);
-        }
-
         $validated = $request->validate([
             'phone' => ['required', 'string', 'max:30'],
             'username' => Schema::hasColumn('users', 'username')
@@ -76,10 +72,6 @@ class UserCreationController extends Controller
     public function verifyOtp(Request $request, WhatsAppService $messaging): JsonResponse
     {
         $actor = $request->user();
-
-        if (! $this->isAdmin($actor)) {
-            return response()->json(['message' => 'هذه الصلاحية متاحة للمدير فقط.'], 403);
-        }
 
         $rules = [
             'name' => ['required', 'string', 'max:255'],
@@ -133,10 +125,11 @@ class UserCreationController extends Controller
             ]);
         }
 
-        $accountId = $validated['account_id'] ?? $actor?->account_id;
+        $accountId = $actor?->account_id;
 
         if (! $accountId) {
-            $accountId = Account::query()->orderBy('id')->value('id');
+            $accountId = Account::query()->where('status', 'active')->orderBy('id')->value('id')
+                ?: Account::query()->orderBy('id')->value('id');
         }
 
         $attributes = [
@@ -201,19 +194,5 @@ class UserCreationController extends Controller
         }
 
         return substr($phone, 0, 4) . '****' . substr($phone, -4);
-    }
-
-    private function isAdmin(?User $user): bool
-    {
-        if (! $user) {
-            return false;
-        }
-
-        if (Schema::hasColumn('users', 'role') && (string) $user->getAttribute('role') === 'admin') {
-            return true;
-        }
-
-        return strtolower((string) ($user->username ?: $user->email ?: $user->name)) === 'admin'
-            || strtolower((string) $user->email) === 'admin@pm.sa';
     }
 }
