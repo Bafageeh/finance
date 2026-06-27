@@ -12,7 +12,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['account_id', 'name', 'username', 'email', 'password'])]
+#[Fillable(['account_id', 'name', 'username', 'email', 'phone', 'role', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -27,6 +27,11 @@ class User extends Authenticatable
     public function accessTokens(): HasMany
     {
         return $this->hasMany(PersonalAccessToken::class);
+    }
+
+    public function creationOtps(): HasMany
+    {
+        return $this->hasMany(UserCreationOtp::class, 'created_by_user_id');
     }
 
     protected function casts(): array
