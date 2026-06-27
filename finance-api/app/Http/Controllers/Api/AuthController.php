@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\PersonalAccessToken;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -119,6 +120,46 @@ class AuthController extends Controller
         ]);
     }
 
+    public function accounts(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $this->isAdmin($user)) {
+            return response()->json([
+                'message' => 'هذه الصلاحية متاحة للمدير فقط.',
+            ], 403);
+        }
+
+        $accounts = Account::query()
+            ->withCount(['users', 'clients'])
+            ->with(['users' => function ($query) {
+                $query->select('id', 'account_id', 'name', 'username', 'email', 'created_at')
+                    ->orderBy('name');
+            }])
+            ->when($user?->account_id, fn ($query) => $query->where('id', '!=', $user->account_id))
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Account $account) => [
+                'id' => $account->id,
+                'name' => $account->name,
+                'slug' => $account->slug,
+                'status' => $account->status,
+                'users_count' => $account->users_count,
+                'clients_count' => $account->clients_count,
+                'users' => $account->users->map(fn (User $accountUser) => [
+                    'id' => $accountUser->id,
+                    'name' => $accountUser->name,
+                    'username' => $accountUser->username,
+                    'email' => $accountUser->email,
+                    'created_at' => $accountUser->created_at?->toDateString(),
+                ])->values(),
+            ])->values();
+
+        return response()->json([
+            'data' => $accounts,
+        ]);
+    }
+
     private function formatUser(?User $user): array
     {
         return [
@@ -130,7 +171,21 @@ class AuthController extends Controller
             'username' => $user?->username,
             'email' => $user?->email,
             'phone' => null,
-            'role' => 'admin',
+            'role' => $this->isAdmin($user) ? 'admin' : 'user',
         ];
+    }
+
+    private function isAdmin(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if (Schema::hasColumn('users', 'role') && (string) $user->getAttribute('role') === 'admin') {
+            return true;
+        }
+
+        return strtolower((string) ($user->username ?: $user->email ?: $user->name)) === 'admin'
+            || strtolower((string) $user->email) === 'admin@pm.sa';
     }
 }
