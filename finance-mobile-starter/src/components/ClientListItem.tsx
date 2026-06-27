@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Client } from '@/types/api';
-import { getClientAlertInfo, getOverdueScheduleItems } from '@/utils/finance';
-import { formatCurrency, getClientDisplayStatus, getInitials } from '@/utils/format';
+import { getClientAlertInfo, getNextUnpaidScheduleItem, getOverdueScheduleItems } from '@/utils/finance';
+import { formatCurrency, formatDate, getClientDisplayStatus, getInitials } from '@/utils/format';
 import { colors } from '@/utils/theme';
 
 interface ClientListItemProps {
@@ -14,6 +14,9 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
   const status = getClientDisplayStatus(client);
   const alertInfo = getClientAlertInfo(client);
   const overdueItems = getOverdueScheduleItems(client);
+  const nextPaymentItem = getNextUnpaidScheduleItem(client) || alertInfo.nextUpcoming;
+  const nextPaymentDate = nextPaymentItem?.due_date ? formatDate(nextPaymentItem.due_date) : 'لا يوجد';
+  const remainingPrincipal = Number(client.summary.remaining_principal ?? 0) || 0;
   const isLate = overdueItems.length > 0;
   const progressColor = client.has_court
     ? colors.court
@@ -82,6 +85,17 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
           <Text style={styles.meta} numberOfLines={1}>
             {client.asset || 'تمويل'} · {client.summary.paid_count}/{client.months} شهر · متبقي: {formatCurrency(client.summary.remaining_amount)}
           </Text>
+
+          <View style={styles.detailRow}>
+            <View style={styles.detailPill}>
+              <Text style={styles.detailLabel}>الدفعة القادمة</Text>
+              <Text style={styles.detailValue} numberOfLines={1}>{nextPaymentDate}</Text>
+            </View>
+            <View style={styles.detailPill}>
+              <Text style={styles.detailLabel}>رأس المال المتبقي</Text>
+              <Text style={styles.detailValue} numberOfLines={1}>{formatCurrency(remainingPrincipal)}</Text>
+            </View>
+          </View>
 
           <View style={styles.footerRow}>
             <View style={styles.statusGroup}>
@@ -252,6 +266,35 @@ const styles = StyleSheet.create({
   meta: {
     color: colors.textMuted,
     fontSize: 13,
+    textAlign: 'right',
+  },
+  detailRow: {
+    flexDirection: 'row-reverse',
+    gap: 6,
+  },
+  detailPill: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 14,
+    backgroundColor: '#faf9f6',
+    borderWidth: 1,
+    borderColor: '#eee8de',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  detailLabel: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: '800',
+    textAlign: 'right',
+  },
+  detailValue: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '900',
     textAlign: 'right',
   },
   footerRow: {
