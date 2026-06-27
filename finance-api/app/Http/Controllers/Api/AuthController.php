@@ -71,6 +71,54 @@ class AuthController extends Controller
         ]);
     }
 
+    public function changePassword(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'user' => ['يلزم تسجيل الدخول أولاً.'],
+            ]);
+        }
+
+        $validated = $request->validate([
+            'current_password' => 'required|string|max:255',
+            'password' => 'nullable|string|min:6|max:255',
+            'password_confirmation' => 'nullable|string|max:255',
+            'new_password' => 'nullable|string|min:6|max:255',
+            'new_password_confirmation' => 'nullable|string|max:255',
+        ]);
+
+        $newPassword = (string) ($validated['password'] ?? $validated['new_password'] ?? '');
+        $confirmation = (string) ($validated['password_confirmation'] ?? $validated['new_password_confirmation'] ?? '');
+
+        if ($newPassword === '') {
+            throw ValidationException::withMessages([
+                'password' => ['أدخل كلمة المرور الجديدة.'],
+            ]);
+        }
+
+        if ($confirmation === '' || $newPassword !== $confirmation) {
+            throw ValidationException::withMessages([
+                'password_confirmation' => ['تأكيد كلمة المرور غير مطابق.'],
+            ]);
+        }
+
+        if (! Hash::check((string) $validated['current_password'], (string) $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => ['كلمة المرور الحالية غير صحيحة.'],
+            ]);
+        }
+
+        $user->forceFill([
+            'password' => Hash::make($newPassword),
+        ])->save();
+
+        return response()->json([
+            'message' => 'تم تغيير كلمة المرور بنجاح.',
+        ]);
+    }
+
     private function formatUser(?User $user): array
     {
         return [
