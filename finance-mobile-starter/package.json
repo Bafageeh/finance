@@ -4,10 +4,11 @@
   "main": "index.js",
   "version": "1.0.2",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "expo start --host lan --port 8081 --clear",
+    "start:8081": "expo start --host lan --port 8081 --clear",
+    "android": "expo start --android --port 8081",
+    "ios": "expo start --ios --port 8081",
+    "web": "expo start --web --port 8081"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
