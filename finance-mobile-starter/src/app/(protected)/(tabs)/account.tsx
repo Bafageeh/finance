@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -182,14 +183,23 @@ export default function AccountScreen() {
         </View>
 
         {isAdmin ? (
-          <ActionTile
-            label="الحسابات الأخرى"
-            icon="people-circle-outline"
-            onPress={() => void openAccountsSheet()}
-            tone="default"
-            disabled={loadingAccounts}
-            style={styles.fullAction}
-          />
+          <View style={styles.primaryActionsRow}>
+            <ActionTile
+              label="مستخدم جديد"
+              icon="person-add-outline"
+              onPress={() => router.push('/account/create-user')}
+              tone="primary"
+              style={styles.halfAction}
+            />
+            <ActionTile
+              label="الحسابات الأخرى"
+              icon="people-circle-outline"
+              onPress={() => void openAccountsSheet()}
+              tone="default"
+              disabled={loadingAccounts}
+              style={styles.halfAction}
+            />
+          </View>
         ) : null}
 
         <ActionTile
@@ -214,14 +224,20 @@ export default function AccountScreen() {
           <View style={styles.adminHintRow}>
             <View style={styles.adminIcon}><Ionicons name="shield-checkmark-outline" size={20} color={colors.success} /></View>
             <View style={styles.adminHintTextWrap}>
-              <Text style={styles.adminHintTitle}>عرض الحسابات الأخرى متاح للمدير فقط</Text>
-              <Text style={styles.adminHintText}>يعرض الحسابات المرتبطة وعدد المستخدمين والعملاء داخل كل حساب.</Text>
+              <Text style={styles.adminHintTitle}>إنشاء المستخدمين وعرض الحسابات متاح للمدير فقط</Text>
+              <Text style={styles.adminHintText}>يمكن إنشاء مستخدم جديد بعد التحقق من رقم الجوال، أو عرض الحسابات المرتبطة وعدد المستخدمين والعملاء.</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.adminOpenButton} onPress={() => void openAccountsSheet()} activeOpacity={0.88}>
-            <Ionicons name="open-outline" size={16} color="#fff" />
-            <Text style={styles.adminOpenText}>فتح شاشة الحسابات الأخرى</Text>
-          </TouchableOpacity>
+          <View style={styles.adminButtonsRow}>
+            <TouchableOpacity style={styles.adminOpenButton} onPress={() => router.push('/account/create-user')} activeOpacity={0.88}>
+              <Ionicons name="person-add-outline" size={16} color="#fff" />
+              <Text style={styles.adminOpenText}>إنشاء مستخدم</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.adminSecondaryButton} onPress={() => void openAccountsSheet()} activeOpacity={0.88}>
+              <Ionicons name="open-outline" size={16} color={colors.text} />
+              <Text style={styles.adminSecondaryText}>الحسابات الأخرى</Text>
+            </TouchableOpacity>
+          </View>
         </AppCard>
       ) : null}
 
@@ -342,8 +358,11 @@ const styles = StyleSheet.create({
   adminHintTextWrap: { flex: 1, alignItems: 'flex-end', gap: 4 },
   adminHintTitle: { color: colors.text, fontSize: 14, fontWeight: '900', textAlign: 'right' },
   adminHintText: { color: colors.textMuted, fontSize: 12, lineHeight: 19, textAlign: 'right' },
-  adminOpenButton: { minHeight: 44, borderRadius: 16, backgroundColor: colors.primary, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  adminButtonsRow: { flexDirection: 'row-reverse', gap: 10 },
+  adminOpenButton: { flex: 1, minHeight: 44, borderRadius: 16, backgroundColor: colors.primary, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8 },
   adminOpenText: { color: '#fff', fontSize: 13, fontWeight: '900' },
+  adminSecondaryButton: { flex: 1, minHeight: 44, borderRadius: 16, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  adminSecondaryText: { color: colors.text, fontSize: 13, fontWeight: '900' },
   infoList: { gap: 12 },
   infoRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
   infoLabel: { fontSize: 13, color: colors.textMuted, fontWeight: '700' },
