@@ -21,6 +21,24 @@ import {
   updateMockClient,
 } from '@/services/mock-data';
 
+export interface AdminAccountUser {
+  id: number | string;
+  name: string;
+  username?: string | null;
+  email?: string | null;
+  created_at?: string | null;
+}
+
+export interface AdminAccountSummary {
+  id: number | string;
+  name: string;
+  slug?: string | null;
+  status?: string | null;
+  users_count: number;
+  clients_count: number;
+  users: AdminAccountUser[];
+}
+
 function resolveApiBase(): string {
   const host = typeof window !== 'undefined' && window.location?.hostname
     ? window.location.hostname.toLowerCase()
@@ -231,6 +249,13 @@ export async function changePassword(payload: {
       new_password_confirmation: payload.password_confirmation,
     }),
   });
+}
+
+export async function getAdminAccounts(): Promise<AdminAccountSummary[]> {
+  if (USE_MOCKS) return [];
+
+  const response = await request<ApiEnvelope<AdminAccountSummary[]> | AdminAccountSummary[]>('/admin/account-list');
+  return pickEnvelopeData<AdminAccountSummary[]>(response);
 }
 
 export async function getClients(status: ClientFilter = 'all'): Promise<Client[]> {
