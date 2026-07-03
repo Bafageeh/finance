@@ -16,6 +16,7 @@ import { exportReportExcelCsv, exportReportPdf } from '@/services/report-export'
 import { Client, StatsData } from '@/types/api';
 import { CollectionAssistantBoard, CollectionAssistantLead } from '@/types/assistant';
 import { FollowUpSummary } from '@/types/follow-up';
+import { buildActiveLateClientsMatrixReport } from '@/utils/active-late-clients-report';
 import { buildCollectionAssistantBoard } from '@/utils/collection-assistant';
 import { formatCurrency, formatDate } from '@/utils/format';
 import {
@@ -109,6 +110,7 @@ export default function ReportsScreen() {
 
     return [
       buildSmartCollectionReport(assistantBoard),
+      buildActiveLateClientsMatrixReport(clients),
       buildPortfolioReport(clients, stats),
       buildLateClientsReport(clients),
       buildLateClientsWithAliReport(aliReportClients),
@@ -216,7 +218,7 @@ export default function ReportsScreen() {
 
             {reports.map((report, index) => (
               <ReportExportCard
-                key={report.kind}
+                key={`${report.kind}-${index}`}
                 report={report}
                 onExportPdf={() => void handlePdf(index)}
                 onExportExcel={() => void handleExcel(index)}
