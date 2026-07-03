@@ -66,7 +66,6 @@ function buildHtml(report: ReportDocument): string {
     .join('');
 
   const headerHtml = report.headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('');
-
   const rowsHtml = report.rows
     .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`)
     .join('');
@@ -123,10 +122,25 @@ function styleCell(cell: ExcelJS.Cell, fill: string, fontColor = 'FF0F172A', bol
   };
 }
 
+function cellToneStyle(tone?: string): { fill: string; font: string; bold: boolean } | null {
+  switch (tone) {
+    case 'paid':
+      return { fill: 'FFDCFCE7', font: 'FF166534', bold: true };
+    case 'due':
+      return { fill: 'FFDBEAFE', font: 'FF1D4ED8', bold: true };
+    case 'late':
+      return { fill: 'FFFEE2E2', font: 'FF991B1B', bold: true };
+    default:
+      return null;
+  }
+}
+
 async function buildXlsxBase64(report: ReportDocument): Promise<string> {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Finance App';
   workbook.created = new Date();
+  const reportExtras = report as ReportDocument & { cellStyles?: Record<string, string> };
+  const cellStyles = reportExtras.cellStyles || {};
 
   const sheet = workbook.addWorksheet('التقرير', {
     views: [{ rightToLeft: true, state: 'frozen', ySplit: report.summary.length + 7 }],
@@ -180,13 +194,21 @@ async function buildXlsxBase64(report: ReportDocument): Promise<string> {
     const row = sheet.getRow(rowIndex);
     const label = String(row.getCell(1).value || '');
     const isTotalRow = lastThreeDataLabels.has(label);
-    const fill = isTotalRow ? 'FFFEF3C7' : rowIndex % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC';
+    const reportRowIndex = rowIndex - (headerRowIndex + 1);
+    const baseFill = isTotalRow ? 'FFFEF3C7' : rowIndex % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC';
 
     row.eachCell((cell, colNumber) => {
       if (colNumber === 1) {
         styleCell(cell, isTotalRow ? 'FFFDE68A' : 'FFE2E8F0', 'FF0F172A', true);
+        return;
+      }
+
+      const tone = cellStyles[`${reportRowIndex}:${colNumber - 1}`];
+      const toneStyle = cellToneStyle(tone);
+      if (toneStyle) {
+        styleCell(cell, toneStyle.fill, toneStyle.font, toneStyle.bold);
       } else {
-        styleCell(cell, fill, 'FF0F172A', isTotalRow);
+        styleCell(cell, baseFill, 'FF0F172A', isTotalRow);
       }
     });
   }
