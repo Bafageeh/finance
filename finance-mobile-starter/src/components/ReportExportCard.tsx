@@ -40,7 +40,7 @@ export function ReportExportCard({ report, onExportPdf, onExportExcel }: ReportE
           </TouchableOpacity>
           <TouchableOpacity style={[styles.button, styles.excelButton]} onPress={onExportExcel} activeOpacity={0.88}>
             <Ionicons name="grid-outline" size={15} color="#fff" />
-            <Text style={styles.buttonText}>Excel</Text>
+            <Text style={styles.buttonText}>XLSX</Text>
           </TouchableOpacity>
         </View>
       </View>
