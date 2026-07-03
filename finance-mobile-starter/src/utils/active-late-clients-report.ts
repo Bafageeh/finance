@@ -115,17 +115,18 @@ function scheduleCell(client: Client, period: string, todayPeriod: string): { va
   if (required <= 0) return { value: '', amount: 0 };
 
   const paid = n(item.recorded_paid_amount ?? item.paid_amount ?? item.covered_amount ?? 0);
-  const remaining = n(item.remaining_due ?? Math.max(0, required - paid));
 
-  if (remaining <= 0.01) {
-    return { value: currency(paid > 0 ? paid : required), amount: paid > 0 ? paid : required, tone: 'paid' };
+  // المطلوب: لا نعرض مبالغ الدفعات المستقبلية أو المتأخرة، نعرض فقط المبالغ المدفوعة.
+  // أما اللون فيوضح الحالة: مدفوع / متأخر / مستقبلي.
+  if (paid > 0) {
+    return { value: currency(paid), amount: paid, tone: 'paid' };
   }
 
   if (period <= todayPeriod) {
-    return { value: paid > 0 ? `${currency(paid)} / ${currency(required)}` : currency(required), amount: required, tone: 'late' };
+    return { value: '', amount: 0, tone: 'late' };
   }
 
-  return { value: currency(required), amount: required, tone: 'due' };
+  return { value: '', amount: 0, tone: 'due' };
 }
 
 export function buildActiveLateClientsMatrixReport(allClients: Client[]): ReportDocument {
@@ -181,7 +182,7 @@ export function buildActiveLateClientsMatrixReport(allClients: Client[]): Report
   const document: StyledReportDocument = {
     kind: 'portfolio',
     title: 'تقرير العملاء النشطين والمتأخرين',
-    subtitle: 'الأخضر = مدفوع، الأزرق = مطلوب متبقٍ، الأحمر = متأخر. يساعد التقرير على معرفة الأشهر المتبقية لكل عميل حتى نهاية العقد.',
+    subtitle: 'يعرض داخل الشهور المبالغ المدفوعة فقط. الأخضر = مدفوع، الأزرق = دفعة مستقبلية، الأحمر = متأخر.',
     filename: `active-late-clients-matrix-${generatedAt.slice(0, 10)}`,
     generatedAt,
     summary: [
@@ -197,7 +198,7 @@ export function buildActiveLateClientsMatrixReport(allClients: Client[]): Report
     cellStyles,
     legend: [
       { label: 'مدفوع', tone: 'paid' },
-      { label: 'مطلوب / متبقٍ', tone: 'due' },
+      { label: 'دفعة مستقبلية', tone: 'due' },
       { label: 'متأخر', tone: 'late' },
     ],
   };
