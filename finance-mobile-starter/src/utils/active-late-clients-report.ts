@@ -3,6 +3,13 @@ import { ReportDocument } from '@/types/report';
 import { getClientAlertInfo } from '@/utils/finance';
 import { formatCurrency, formatDate } from '@/utils/format';
 
+type CellTone = 'paid' | 'due' | 'late';
+
+type StyledReportDocument = ReportDocument & {
+  cellStyles?: Record<string, CellTone>;
+  legend?: Array<{ label: string; tone: CellTone }>;
+};
+
 function n(value: number | string | null | undefined): number {
   const numberValue = Number(value ?? 0);
   return Number.isFinite(numberValue) ? Math.round(numberValue * 100) / 100 : 0;
@@ -46,16 +53,8 @@ function itemPeriod(item: PaymentScheduleItem): string | null {
   return toPeriod(item.period_key) || toPeriod(item.due_date);
 }
 
-function paidScheduleMap(client: Client): Record<string, number> {
-  const map: Record<string, number> = {};
-  for (const item of client.schedule || []) {
-    const period = itemPeriod(item);
-    if (!period) continue;
-    const paid = n(item.recorded_paid_amount ?? item.paid_amount ?? item.covered_amount ?? 0);
-    if (paid <= 0) continue;
-    map[period] = n((map[period] || 0) + paid);
-  }
-  return map;
+function currentPeriod(): string {
+  return toPeriod(new Date().toISOString()) || '2021-11';
 }
 
 function firstReportPeriod(clients: Client[]): string {
@@ -71,7 +70,7 @@ function firstReportPeriod(clients: Client[]): string {
       }
     }
   }
-  return minPeriod || toPeriod(new Date().toISOString()) || '2021-11';
+  return minPeriod || currentPeriod();
 }
 
 function lastReportPeriod(clients: Client[]): string {
@@ -82,8 +81,8 @@ function lastReportPeriod(clients: Client[]): string {
       if (period && period > maxPeriod) maxPeriod = period;
     }
   }
-  const current = toPeriod(new Date().toISOString()) || maxPeriod;
-  return current > maxPeriod ? current : maxPeriod;
+  const nowPeriod = currentPeriod();
+  return nowPeriod > maxPeriod ? nowPeriod : maxPeriod;
 }
 
 function periodRange(start: string, end: string): string[] {
@@ -104,12 +103,38 @@ function infoRow(label: string, clients: Client[], values: Array<string | number
   return [label, ...clients.map((_, index) => values[index] ?? '—'), total];
 }
 
+function findScheduleItem(client: Client, period: string): PaymentScheduleItem | undefined {
+  return (client.schedule || []).find((item) => itemPeriod(item) === period);
+}
+
+function scheduleCell(client: Client, period: string, todayPeriod: string): { value: string; amount: number; tone?: CellTone } {
+  const item = findScheduleItem(client, period);
+  if (!item) return { value: '', amount: 0 };
+
+  const required = n(item.installment_amount ?? item.amount ?? 0);
+  if (required <= 0) return { value: '', amount: 0 };
+
+  const paid = n(item.recorded_paid_amount ?? item.paid_amount ?? item.covered_amount ?? 0);
+  const remaining = n(item.remaining_due ?? Math.max(0, required - paid));
+
+  if (remaining <= 0.01) {
+    return { value: currency(paid > 0 ? paid : required), amount: paid > 0 ? paid : required, tone: 'paid' };
+  }
+
+  if (period <= todayPeriod) {
+    return { value: paid > 0 ? `${currency(paid)} / ${currency(required)}` : currency(required), amount: required, tone: 'late' };
+  }
+
+  return { value: currency(required), amount: required, tone: 'due' };
+}
+
 export function buildActiveLateClientsMatrixReport(allClients: Client[]): ReportDocument {
   const clients = activeOrLateClients(allClients);
-  const paidMaps = clients.map(paidScheduleMap);
   const startPeriod = firstReportPeriod(clients);
   const periods = periodRange(startPeriod, lastReportPeriod(clients));
+  const todayPeriod = currentPeriod();
   const generatedAt = new Date().toISOString();
+  const cellStyles: Record<string, CellTone> = {};
 
   const monthlyTotal = clients.reduce((sum, client) => sum + n(client.summary?.monthly_installment), 0);
   const ahmadAnnualTotal = clients.reduce((sum, client) => sum + ahmadAnnual(client), 0);
@@ -133,11 +158,17 @@ export function buildActiveLateClientsMatrixReport(allClients: Client[]): Report
   ];
 
   for (const period of periods) {
-    const values = paidMaps.map((map) => {
-      const paid = n(map[period] || 0);
-      return paid > 0 ? currency(paid) : '';
+    const rowIndex = rows.length;
+    let total = 0;
+    const values = clients.map((client, clientIndex) => {
+      const cell = scheduleCell(client, period, todayPeriod);
+      if (cell.tone) {
+        cellStyles[`${rowIndex}:${clientIndex + 1}`] = cell.tone;
+      }
+      total += cell.amount;
+      return cell.value;
     });
-    const total = paidMaps.reduce((sum, map) => sum + n(map[period] || 0), 0);
+
     rows.push([periodLabel(period), ...values, total > 0 ? currency(total) : '']);
   }
 
@@ -147,10 +178,10 @@ export function buildActiveLateClientsMatrixReport(allClients: Client[]): Report
     infoRow('المتبقي من رأس المال', clients, remainingPrincipalTotals.map(currency), currency(remainingPrincipalTotals.reduce((sum, value) => sum + value, 0))),
   );
 
-  return {
+  const document: StyledReportDocument = {
     kind: 'portfolio',
     title: 'تقرير العملاء النشطين والمتأخرين',
-    subtitle: 'أسماء العملاء في الصف الأول، وبيانات العقد في أول عمود، ثم الأقساط المدفوعة شهريًا بداية من أول قسط مطلوب أو مدفوع لأي عميل.',
+    subtitle: 'الأخضر = مدفوع، الأزرق = مطلوب متبقٍ، الأحمر = متأخر. يساعد التقرير على معرفة الأشهر المتبقية لكل عميل حتى نهاية العقد.',
     filename: `active-late-clients-matrix-${generatedAt.slice(0, 10)}`,
     generatedAt,
     summary: [
@@ -163,5 +194,13 @@ export function buildActiveLateClientsMatrixReport(allClients: Client[]): Report
     ],
     headers: ['البيان', ...clients.map((client) => client.name), 'الإجمالي'],
     rows,
+    cellStyles,
+    legend: [
+      { label: 'مدفوع', tone: 'paid' },
+      { label: 'مطلوب / متبقٍ', tone: 'due' },
+      { label: 'متأخر', tone: 'late' },
+    ],
   };
+
+  return document;
 }
