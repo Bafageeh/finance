@@ -1,3 +1,4 @@
+import ExcelJS from 'exceljs';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -13,9 +14,38 @@ function escapeHtml(value: string | number): string {
     .replace(/'/g, '&#039;');
 }
 
-function csvCell(value: string | number): string {
-  const text = String(value ?? '').replace(/\r?\n/g, ' ').trim();
-  return `"${text.replace(/"/g, '""')}"`;
+function toLatinDigits(value: string | number): string {
+  const eastern = '٠١٢٣٤٥٦٧٨٩';
+  const persian = '۰۱۲۳۴۵۶۷۸۹';
+
+  return String(value ?? '')
+    .replace(/[٠-٩]/g, (digit) => String(eastern.indexOf(digit)))
+    .replace(/[۰-۹]/g, (digit) => String(persian.indexOf(digit)))
+    .replace(/٫/g, '.')
+    .replace(/٬/g, ',')
+    .replace(/‏/g, '')
+    .replace(/‎/g, '')
+    .trim();
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let output = '';
+
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i];
+    const b = i + 1 < bytes.length ? bytes[i + 1] : 0;
+    const c = i + 2 < bytes.length ? bytes[i + 2] : 0;
+    const triplet = (a << 16) | (b << 8) | c;
+
+    output += alphabet[(triplet >> 18) & 63];
+    output += alphabet[(triplet >> 12) & 63];
+    output += i + 1 < bytes.length ? alphabet[(triplet >> 6) & 63] : '=';
+    output += i + 2 < bytes.length ? alphabet[triplet & 63] : '=';
+  }
+
+  return output;
 }
 
 function buildHtml(report: ReportDocument): string {
@@ -136,26 +166,94 @@ function buildHtml(report: ReportDocument): string {
 </html>`;
 }
 
-function buildCsv(report: ReportDocument): string {
-  const titleRows = [
-    [report.title],
-    [report.subtitle],
-    [`تاريخ الإنشاء: ${formatDate(report.generatedAt)}`],
-    [],
-    ['الملخص'],
-    ...report.summary.map((item) => [item.label, item.value]),
-    [],
-  ];
-
-  const dataRows = [report.headers, ...report.rows];
-  const allRows = [...titleRows, ...dataRows];
-  return `\uFEFF${allRows.map((row) => row.map(csvCell).join(',')).join('\n')}`;
-}
-
 function safeFilename(report: ReportDocument, extension: string): string {
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
   const base = (report.filename || report.kind || 'report').replace(/[^a-zA-Z0-9-_]/g, '-');
   return `${base}-${stamp}.${extension}`;
+}
+
+function styleCell(cell: ExcelJS.Cell, fill: string, fontColor = 'FF0F172A', bold = false) {
+  cell.font = { name: 'Arial', size: 11, bold, color: { argb: fontColor } };
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+  cell.alignment = { horizontal: 'right', vertical: 'middle', wrapText: true };
+  cell.border = {
+    top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+  };
+}
+
+async function buildXlsxBase64(report: ReportDocument): Promise<string> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Finance App';
+  workbook.created = new Date();
+
+  const sheet = workbook.addWorksheet('التقرير', {
+    views: [{ rightToLeft: true, state: 'frozen', ySplit: report.summary.length + 7 }],
+    pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+  });
+
+  const rows: Array<Array<string | number>> = [
+    [toLatinDigits(report.title)],
+    [toLatinDigits(report.subtitle)],
+    [toLatinDigits(`تاريخ الإنشاء: ${formatDate(report.generatedAt)}`)],
+    [],
+    ['الملخص'],
+    ...report.summary.map((item) => [toLatinDigits(item.label), toLatinDigits(item.value)]),
+    [],
+    report.headers.map(toLatinDigits),
+    ...report.rows.map((row) => row.map(toLatinDigits)),
+  ];
+
+  rows.forEach((row) => sheet.addRow(row));
+
+  const maxColumns = Math.max(...rows.map((row) => row.length), 1);
+  sheet.columns = Array.from({ length: maxColumns }, (_, index) => ({ width: index === 0 ? 32 : 18 }));
+
+  const titleRow = sheet.getRow(1);
+  titleRow.height = 28;
+  sheet.mergeCells(1, 1, 1, Math.max(1, maxColumns));
+  titleRow.eachCell((cell) => styleCell(cell, 'FFEDE9FE', 'FF4C1D95', true));
+
+  sheet.getRow(2).eachCell((cell) => styleCell(cell, 'FFF8FAFC', 'FF475569'));
+  sheet.getRow(3).eachCell((cell) => styleCell(cell, 'FFF8FAFC', 'FF475569'));
+  sheet.getRow(5).eachCell((cell) => styleCell(cell, 'FFDBEAFE', 'FF1E3A8A', true));
+
+  const summaryStart = 6;
+  const summaryEnd = summaryStart + report.summary.length - 1;
+  for (let rowIndex = summaryStart; rowIndex <= summaryEnd; rowIndex += 1) {
+    sheet.getRow(rowIndex).eachCell((cell, colNumber) => {
+      styleCell(cell, colNumber === 1 ? 'FFE0F2FE' : 'FFF8FAFC', colNumber === 1 ? 'FF075985' : 'FF0F172A', colNumber === 1);
+    });
+  }
+
+  const headerRowIndex = summaryEnd + 2;
+  sheet.getRow(headerRowIndex).eachCell((cell) => styleCell(cell, 'FF0F172A', 'FFFFFFFF', true));
+
+  const lastThreeDataLabels = new Set([
+    'مجموع المدفوع لكل عميل',
+    'المتبقي لتغطية قيمة السند المطلوب',
+    'المتبقي من رأس المال',
+  ]);
+
+  for (let rowIndex = headerRowIndex + 1; rowIndex <= sheet.rowCount; rowIndex += 1) {
+    const row = sheet.getRow(rowIndex);
+    const label = String(row.getCell(1).value || '');
+    const isTotalRow = lastThreeDataLabels.has(label);
+    const fill = isTotalRow ? 'FFFEF3C7' : rowIndex % 2 === 0 ? 'FFFFFFFF' : 'FFF8FAFC';
+
+    row.eachCell((cell, colNumber) => {
+      if (colNumber === 1) {
+        styleCell(cell, isTotalRow ? 'FFFDE68A' : 'FFE2E8F0', 'FF0F172A', true);
+      } else {
+        styleCell(cell, fill, 'FF0F172A', isTotalRow);
+      }
+    });
+  }
+
+  const arrayBuffer = await workbook.xlsx.writeBuffer();
+  return arrayBufferToBase64(arrayBuffer as ArrayBuffer);
 }
 
 export async function exportReportPdf(report: ReportDocument): Promise<string> {
@@ -177,16 +275,18 @@ export async function exportReportPdf(report: ReportDocument): Promise<string> {
 }
 
 export async function exportReportExcelCsv(report: ReportDocument): Promise<string> {
-  const target = `${FileSystem.documentDirectory}${safeFilename(report, 'csv')}`;
-  await FileSystem.writeAsStringAsync(target, buildCsv(report), {
-    encoding: FileSystem.EncodingType.UTF8,
+  const target = `${FileSystem.documentDirectory}${safeFilename(report, 'xlsx')}`;
+  const base64 = await buildXlsxBase64(report);
+
+  await FileSystem.writeAsStringAsync(target, base64, {
+    encoding: FileSystem.EncodingType.Base64,
   });
 
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(target, {
-      mimeType: 'text/csv',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       dialogTitle: report.title,
-      UTI: 'public.comma-separated-values-text',
+      UTI: 'org.openxmlformats.spreadsheetml.sheet',
     });
   }
 
