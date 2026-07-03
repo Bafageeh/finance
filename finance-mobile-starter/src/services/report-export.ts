@@ -1,9 +1,14 @@
+import { Buffer } from 'buffer';
 import ExcelJS from 'exceljs';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { ReportDocument } from '@/types/report';
 import { formatDate } from '@/utils/format';
+
+if (typeof (globalThis as any).Buffer === 'undefined') {
+  (globalThis as any).Buffer = Buffer;
+}
 
 function escapeHtml(value: string | number): string {
   return String(value ?? '')
@@ -72,86 +77,20 @@ function buildHtml(report: ReportDocument): string {
   <meta charset="utf-8" />
   <style>
     @page { margin: 22px; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-      direction: rtl;
-      color: #0f172a;
-      background: #ffffff;
-      margin: 0;
-      padding: 0;
-    }
-    .header {
-      border-bottom: 2px solid #e2e8f0;
-      padding-bottom: 14px;
-      margin-bottom: 16px;
-    }
-    h1 {
-      font-size: 24px;
-      margin: 0 0 8px;
-      color: #111827;
-    }
-    .subtitle {
-      font-size: 12px;
-      line-height: 1.8;
-      color: #64748b;
-      margin: 0;
-    }
-    .generated {
-      margin-top: 8px;
-      color: #64748b;
-      font-size: 11px;
-    }
-    .summary-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .summary-card {
-      border: 1px solid #e2e8f0;
-      background: #f8fafc;
-      border-radius: 12px;
-      padding: 10px;
-      page-break-inside: avoid;
-    }
-    .summary-label {
-      color: #64748b;
-      font-size: 11px;
-      margin-bottom: 6px;
-    }
-    .summary-value {
-      color: #0f172a;
-      font-size: 16px;
-      font-weight: 800;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 10px;
-    }
-    th {
-      background: #0f172a;
-      color: #fff;
-      padding: 8px 6px;
-      text-align: right;
-      border: 1px solid #0f172a;
-      white-space: nowrap;
-    }
-    td {
-      padding: 7px 6px;
-      border: 1px solid #e2e8f0;
-      vertical-align: top;
-      line-height: 1.5;
-    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; direction: rtl; color: #0f172a; background: #ffffff; margin: 0; padding: 0; }
+    .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 14px; margin-bottom: 16px; }
+    h1 { font-size: 24px; margin: 0 0 8px; color: #111827; }
+    .subtitle { font-size: 12px; line-height: 1.8; color: #64748b; margin: 0; }
+    .generated { margin-top: 8px; color: #64748b; font-size: 11px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+    .summary-card { border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 12px; padding: 10px; page-break-inside: avoid; }
+    .summary-label { color: #64748b; font-size: 11px; margin-bottom: 6px; }
+    .summary-value { color: #0f172a; font-size: 16px; font-weight: 800; }
+    table { width: 100%; border-collapse: collapse; font-size: 10px; }
+    th { background: #0f172a; color: #fff; padding: 8px 6px; text-align: right; border: 1px solid #0f172a; white-space: nowrap; }
+    td { padding: 7px 6px; border: 1px solid #e2e8f0; vertical-align: top; line-height: 1.5; }
     tr:nth-child(even) td { background: #f8fafc; }
-    .empty {
-      border: 1px dashed #cbd5e1;
-      color: #64748b;
-      border-radius: 12px;
-      padding: 18px;
-      text-align: center;
-      font-size: 13px;
-    }
+    .empty { border: 1px dashed #cbd5e1; color: #64748b; border-radius: 12px; padding: 18px; text-align: center; font-size: 13px; }
   </style>
 </head>
 <body>
