@@ -1,0 +1,481 @@
+import { formatDateDDMMYYYY } from '@/utils/format';
+import {
+  ApiEnvelope,
+  Client,
+  ClientFilter,
+  CreateClientPayload,
+  RecordPaymentPayload,
+  StatsData,
+  UpdateClientPayload,
+} from '@/types/api';
+import { AuthSession, AuthUser, LoginPayload } from '@/types/auth';
+import {
+  createMockClient,
+  deleteMockClient,
+  getMockClient,
+  getMockClients,
+  getMockProfile,
+  getMockStats,
+  loginMock,
+  recordMockPayment,
+  removeMockPayment,
+  updateMockClient,
+} from '@/services/mock-data';
+
+export interface AdminAccountUser {
+  id: number | string;
+  name: string;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role?: string | null;
+  created_at?: string | null;
+}
+
+export interface AdminAccountSummary {
+  id: number | string;
+  name: string;
+  slug?: string | null;
+  status?: string | null;
+  users_count: number;
+  clients_count: number;
+  users: AdminAccountUser[];
+}
+
+export interface CreateUserOtpPayload {
+  phone: string;
+  username?: string;
+}
+
+export interface CreateUserWithOtpPayload {
+  name: string;
+  username: string;
+  phone: string;
+  email?: string;
+  password: string;
+  password_confirmation: string;
+  otp: string;
+  account_id?: number | string | null;
+}
+
+export interface CreatedUserSummary {
+  id: number | string;
+  name: string;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role?: string | null;
+}
+
+function resolveApiBase(): string {
+  return (
+    process.env.EXPO_PUBLIC_API_BASE_URL
+    || process.env.EXPO_PUBLIC_API_URL
+    || 'https://finance.pm.sa/api/v1'
+  );
+}
+
+const API_BASE = resolveApiBase().replace(/\/$/, '');
+const MOCK_FLAG = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
+const HAS_REAL_API_BASE = /^https?:\/\//i.test(API_BASE) && !/(example\.com|127\.0\.0\.1|localhost)/i.test(API_BASE);
+const USE_MOCKS = MOCK_FLAG && !HAS_REAL_API_BASE;
+
+let authToken: string | null = null;
+
+export class ApiRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+  }
+}
+
+function buildHeaders(init?: RequestInit): HeadersInit {
+  return {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    ...(init?.headers || {}),
+  };
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: buildHeaders(init),
+  });
+
+  const payload = (await response.json().catch(() => ({}))) as { message?: string } & T;
+
+  if (!response.ok) {
+    const message = payload.message || (response.status === 401
+      ? 'انتهت جلسة الدخول أو يلزم تسجيل الدخول مرة أخرى.'
+      : 'تعذر تنفيذ الطلب.');
+    throw new ApiRequestError(message, response.status);
+  }
+
+  return payload;
+}
+
+async function requestOptional<T>(paths: string[], init?: RequestInit): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (const path of paths) {
+    try {
+      return await request<T>(path, init);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'تعذر تنفيذ الطلب.';
+      if (error instanceof ApiRequestError && error.status === 404) {
+        lastError = new Error(message);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw lastError || new Error('تعذر العثور على المسار المناسب للمصادقة.');
+}
+
+function pickEnvelopeData<T>(raw: any): T {
+  return (raw?.data ?? raw) as T;
+}
+
+function normalizeClientCapital(client: Client): Client {
+  if (!client?.summary) {
+    return client;
+  }
+
+  const remainingPrincipal = Number(client.summary.remaining_principal);
+  const paidAmount = Number(client.summary.paid_amount);
+
+  if (!Number.isFinite(remainingPrincipal) || !Number.isFinite(paidAmount)) {
+    return client;
+  }
+
+  return {
+    ...client,
+    summary: {
+      ...client.summary,
+      financed_amount: remainingPrincipal + paidAmount,
+    },
+  };
+}
+
+function normalizeClientList(clients: Client[]): Client[] {
+  return clients.map((client) => normalizeClientCapital(client));
+}
+
+function pickUser(raw: any): AuthUser {
+  const source = raw?.user || raw?.data?.user || raw?.data || raw || {};
+  return {
+    id: source.id ?? source.user_id ?? 1,
+    account_id: source.account_id ?? null,
+    account_name: source.account_name ?? null,
+    account_slug: source.account_slug ?? null,
+    name: source.name ?? source.full_name ?? source.username ?? 'مستخدم النظام',
+    username: source.username ?? null,
+    email: source.email ?? null,
+    phone: source.phone ?? null,
+    role: source.role ?? null,
+  };
+}
+
+function pickToken(raw: any): string {
+  return raw?.token || raw?.access_token || raw?.data?.token || raw?.data?.access_token || '';
+}
+
+function normalizeAuthSession(raw: any): AuthSession {
+  const token = pickToken(raw);
+  if (!token) {
+    throw new Error('لم يتم العثور على رمز دخول صالح من الخادم.');
+  }
+
+  return {
+    token,
+    user: pickUser(raw),
+    issued_at: new Date().toISOString(),
+  };
+}
+
+export function setApiToken(token: string | null | undefined): void {
+  authToken = token || null;
+}
+
+export async function signIn(payload: LoginPayload): Promise<AuthSession> {
+  if (USE_MOCKS) {
+    const session = loginMock(payload);
+    setApiToken(session.token);
+    return session;
+  }
+
+  const response = await requestOptional<any>(['/auth/login', '/login'], {
+    method: 'POST',
+    body: JSON.stringify({
+      login: payload.login,
+      email: payload.login,
+      username: payload.login,
+      password: payload.password,
+    }),
+  });
+
+  const session = normalizeAuthSession(response);
+  setApiToken(session.token);
+  return session;
+}
+
+export async function getProfile(): Promise<AuthUser> {
+  if (USE_MOCKS) {
+    return getMockProfile();
+  }
+
+  const response = await requestOptional<any>(['/auth/me', '/me', '/user']);
+  return pickUser(response);
+}
+
+export async function signOutRemote(): Promise<void> {
+  if (USE_MOCKS) return;
+
+  try {
+    await requestOptional<any>(['/auth/logout', '/logout'], {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  } catch {
+    // intentionally ignore logout endpoint mismatches for now
+  } finally {
+    setApiToken(null);
+  }
+}
+
+export async function changePassword(payload: {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
+}): Promise<void> {
+  if (USE_MOCKS) return;
+
+  await requestOptional<any>(['/auth/change-password', '/auth/password', '/password/change'], {
+    method: 'POST',
+    body: JSON.stringify({
+      current_password: payload.current_password,
+      password: payload.password,
+      password_confirmation: payload.password_confirmation,
+      new_password: payload.password,
+      new_password_confirmation: payload.password_confirmation,
+    }),
+  });
+}
+
+export async function getAdminAccounts(): Promise<AdminAccountSummary[]> {
+  if (USE_MOCKS) return [];
+
+  const response = await request<ApiEnvelope<AdminAccountSummary[]> | AdminAccountSummary[]>(`/admin/account-list?t=${Date.now()}`, {
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+  });
+  return pickEnvelopeData<AdminAccountSummary[]>(response);
+}
+
+export async function updateAdminAccount(id: number | string, payload: {
+  name: string;
+  slug?: string | null;
+  status?: string | null;
+}): Promise<AdminAccountSummary> {
+  if (USE_MOCKS) {
+    return {
+      id,
+      name: payload.name,
+      slug: payload.slug ?? null,
+      status: payload.status ?? 'active',
+      users_count: 0,
+      clients_count: 0,
+      users: [],
+    };
+  }
+
+  const response = await request<ApiEnvelope<AdminAccountSummary> | AdminAccountSummary>(`/admin/accounts/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  return pickEnvelopeData<AdminAccountSummary>(response);
+}
+
+export async function updateAdminUserPassword(id: number | string, payload: {
+  password: string;
+  password_confirmation: string;
+}): Promise<void> {
+  if (USE_MOCKS) return;
+
+  await request(`/admin/users/${id}/password`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function requestCreateUserOtp(payload: CreateUserOtpPayload): Promise<void> {
+  if (USE_MOCKS) return;
+
+  await request('/admin/users/otp/request', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyCreateUserOtp(payload: CreateUserWithOtpPayload): Promise<CreatedUserSummary> {
+  if (USE_MOCKS) {
+    return {
+      id: Date.now(),
+      name: payload.name,
+      username: payload.username,
+      phone: payload.phone,
+      role: 'user',
+    };
+  }
+
+  const response = await request<ApiEnvelope<CreatedUserSummary> | CreatedUserSummary>('/admin/users/otp/verify', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  return pickEnvelopeData<CreatedUserSummary>(response);
+}
+
+export async function getClients(status: ClientFilter = 'all'): Promise<Client[]> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client[]> | Client[]>(`/clients?status=${status}`);
+    return normalizeClientList(pickEnvelopeData<Client[]>(response));
+  }
+
+  return normalizeClientList(getMockClients(status === 'late' ? 'all' : status));
+}
+
+export async function getPartnerClients(): Promise<Client[]> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client[]> | Client[]>('/partner-clients');
+    return normalizeClientList(pickEnvelopeData<Client[]>(response));
+  }
+
+  return normalizeClientList(getMockClients('all').filter((client) => client.profit_share === 'shared'));
+}
+
+export async function getPartnerClient(id: number | string): Promise<Client> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client> | Client>(`/partner-clients/${id}`);
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
+  }
+
+  return normalizeClientCapital(getMockClient(id));
+}
+
+export async function getClient(id: number | string): Promise<Client> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client> | Client>(`/clients/${id}`);
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
+  }
+
+  return normalizeClientCapital(getMockClient(id));
+}
+
+export async function createClient(payload: CreateClientPayload): Promise<Client> {
+  if (!USE_MOCKS) {
+    const safePayload = {
+      ...payload,
+      confirm_insert_only: true,
+    };
+
+    const response = await request<ApiEnvelope<Client> | Client>('/clients/safe-import', {
+      method: 'POST',
+      body: JSON.stringify(safePayload),
+    });
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
+  }
+
+  return normalizeClientCapital(createMockClient(payload));
+}
+
+export async function updateClient(id: number | string, payload: UpdateClientPayload): Promise<Client> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client> | Client>(`/clients/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
+  }
+
+  return normalizeClientCapital(updateMockClient(id, payload));
+}
+
+export async function deleteClient(id: number | string): Promise<void> {
+  if (!USE_MOCKS) {
+    await request<{ message: string }>(`/clients/${id}`, { method: 'DELETE' });
+    return;
+  }
+
+  deleteMockClient(id);
+}
+
+export async function getStats(): Promise<StatsData> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<StatsData> | StatsData>('/stats');
+    return pickEnvelopeData<StatsData>(response);
+  }
+
+  return getMockStats();
+}
+
+export async function recordPayment(id: number | string, payload: RecordPaymentPayload): Promise<void> {
+  if (!USE_MOCKS) {
+    await request(`/clients/${id}/pay`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return;
+  }
+
+  recordMockPayment(id, payload);
+}
+
+export async function removePayment(
+  id: number | string,
+  periodKey: string,
+  options: {
+    paymentId?: number | string | null;
+    monthNumber?: number | null;
+    dueDate?: string | null;
+  } = {},
+): Promise<void> {
+  if (!USE_MOCKS) {
+    const encodedPeriodKey = encodeURIComponent(periodKey);
+    const queryParts: string[] = [];
+
+    if (options.paymentId !== undefined && options.paymentId !== null && String(options.paymentId).trim() !== '') {
+      queryParts.push(`payment_id=${encodeURIComponent(String(options.paymentId))}`);
+    }
+
+    if (options.monthNumber !== undefined && options.monthNumber !== null) {
+      queryParts.push(`month_number=${encodeURIComponent(String(options.monthNumber))}`);
+    }
+
+    if (options.dueDate) {
+      queryParts.push(`due_date=${encodeURIComponent(String(options.dueDate))}`);
+    }
+
+    const queryString = queryParts.length ? `?${queryParts.join('&')}` : '';
+    await request(`/clients/${id}/pay/${encodedPeriodKey}${queryString}`, { method: 'DELETE' });
+    return;
+  }
+
+  removeMockPayment(id, periodKey);
+}
+
+export const apiConfig = {
+  baseUrl: API_BASE,
+  useMocks: USE_MOCKS,
+  mockFlagEnabled: MOCK_FLAG,
+  hasRealApiBase: HAS_REAL_API_BASE,
+};
