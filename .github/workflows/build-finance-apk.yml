@@ -12,7 +12,6 @@ on:
       - main
     paths:
       - 'finance-mobile/**'
-      - 'finance-mobile-starter/**'
       - '.github/workflows/build-finance-apk.yml'
 
 concurrency:
@@ -36,46 +35,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Resolve mobile folder
-        id: mobile
+      - name: Verify standalone finance-mobile app
         shell: bash
         run: |
-          if [ -f finance-mobile/package.json ]; then
-            echo "dir=finance-mobile" >> "$GITHUB_OUTPUT"
-            echo "overlay=false" >> "$GITHUB_OUTPUT"
-          elif [ -f finance-mobile-starter/package.json ]; then
-            echo "dir=finance-mobile-starter" >> "$GITHUB_OUTPUT"
-            echo "overlay=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No mobile package.json was found."
-            find . -maxdepth 3 -name package.json -print
+          if [ ! -f finance-mobile/package.json ]; then
+            echo "finance-mobile/package.json is required. finance-mobile-starter is no longer used."
             exit 1
           fi
-
-      - name: Overlay finance-mobile source onto build app
-        if: steps.mobile.outputs.overlay == 'true'
-        shell: bash
-        run: |
-          if [ -d finance-mobile/src ]; then
-            echo "Using package/build files from finance-mobile-starter and source code from finance-mobile/src"
-            rm -rf finance-mobile-starter/src
-            cp -a finance-mobile/src finance-mobile-starter/src
-          else
-            echo "finance-mobile/src not found; using finance-mobile-starter as-is"
+          if [ ! -d finance-mobile/src ]; then
+            echo "finance-mobile/src is required."
+            exit 1
           fi
-
-      - name: Show build source proof
-        shell: bash
-        run: |
-          echo "Build dir: ${{ steps.mobile.outputs.dir }}"
-          test -f "${{ steps.mobile.outputs.dir }}/src/components/ClientListItem.tsx" && grep -n "isDoneClient\|!isDoneClient\|رأس المال المتبقي\|الدفعة القادمة" "${{ steps.mobile.outputs.dir }}/src/components/ClientListItem.tsx" || true
+          echo "Build dir: finance-mobile"
+          grep -n "isDoneClient\|!isDoneClient\|رأس المال المتبقي\|الدفعة القادمة" finance-mobile/src/components/ClientListItem.tsx || true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: ${{ steps.mobile.outputs.dir }}/package-lock.json
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -89,13 +66,13 @@ jobs:
       - name: Install dependencies
         shell: bash
         run: |
-          cd "${{ steps.mobile.outputs.dir }}"
+          cd finance-mobile
           npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Configure API URL
         shell: bash
         run: |
-          cd "${{ steps.mobile.outputs.dir }}"
+          cd finance-mobile
           cat > .env <<EOF
           API_URL=${API_URL}
           EXPO_PUBLIC_API_URL=${API_URL}
@@ -106,13 +83,13 @@ jobs:
       - name: Generate Android project locally
         shell: bash
         run: |
-          cd "${{ steps.mobile.outputs.dir }}"
+          cd finance-mobile
           npx expo prebuild --platform android --clean --no-install --non-interactive
 
       - name: Build release APK with bundled JS
         shell: bash
         run: |
-          cd "${{ steps.mobile.outputs.dir }}/android"
+          cd finance-mobile/android
           chmod +x ./gradlew
           ./gradlew assembleRelease --no-daemon --stacktrace
 
@@ -120,10 +97,10 @@ jobs:
         shell: bash
         run: |
           mkdir -p apk-output
-          APK_PATH="$(find "${{ steps.mobile.outputs.dir }}/android/app/build/outputs/apk/release" -name '*.apk' | head -n 1)"
+          APK_PATH="$(find finance-mobile/android/app/build/outputs/apk/release -name '*.apk' | head -n 1)"
           if [ -z "$APK_PATH" ]; then
             echo "No release APK was generated."
-            find "${{ steps.mobile.outputs.dir }}/android/app/build/outputs" -type f || true
+            find finance-mobile/android/app/build/outputs -type f || true
             exit 1
           fi
           cp "$APK_PATH" apk-output/finance-release.apk
@@ -137,4 +114,4 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-# Source overlay APK trigger: 2026-07-10T00:25:00+03:00
+# Standalone finance-mobile APK trigger: 2026-07-10T00:40:00+03:00
