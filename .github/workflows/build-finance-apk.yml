@@ -116,3 +116,5 @@ jobs:
           path: apk-output/finance-release.apk
           if-no-files-found: error
           retention-days: 14
+
+# Fresh APK trigger: 2026-07-09T20:42:00+03:00
