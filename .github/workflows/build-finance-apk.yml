@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   build-apk:
-    name: Build installable APK without EAS
+    name: Build standalone APK without EAS
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -89,30 +89,30 @@ jobs:
           cd "${{ steps.mobile.outputs.dir }}"
           npx expo prebuild --platform android --clean --no-install --non-interactive
 
-      - name: Build debug APK locally
+      - name: Build release APK with bundled JS
         shell: bash
         run: |
           cd "${{ steps.mobile.outputs.dir }}/android"
           chmod +x ./gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Prepare APK artifact
         shell: bash
         run: |
           mkdir -p apk-output
-          APK_PATH="$(find "${{ steps.mobile.outputs.dir }}/android/app/build/outputs/apk/debug" -name '*.apk' | head -n 1)"
+          APK_PATH="$(find "${{ steps.mobile.outputs.dir }}/android/app/build/outputs/apk/release" -name '*.apk' | head -n 1)"
           if [ -z "$APK_PATH" ]; then
-            echo "No APK was generated."
+            echo "No release APK was generated."
             find "${{ steps.mobile.outputs.dir }}/android/app/build/outputs" -type f || true
             exit 1
           fi
-          cp "$APK_PATH" apk-output/finance-debug.apk
-          ls -lh apk-output/finance-debug.apk
+          cp "$APK_PATH" apk-output/finance-release.apk
+          ls -lh apk-output/finance-release.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: finance-debug-apk-no-eas
-          path: apk-output/finance-debug.apk
+          name: finance-release-apk-no-eas
+          path: apk-output/finance-release.apk
           if-no-files-found: error
           retention-days: 14
