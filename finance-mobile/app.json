@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "Finance Mobile",
+    "slug": "finance-mobile",
+    "scheme": "finance-mobile",
+    "version": "1.0.3",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "android": {
+      "package": "com.example.financemobile",
+      "versionCode": 5
+    },
+    "ios": {
+      "bundleIdentifier": "com.example.financemobile",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "يستخدم تطبيق التمويل بصمة الوجه لتسجيل الدخول السريع بعد أول دخول بكلمة المرور."
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sharing",
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "يستخدم تطبيق التمويل بصمة الوجه لتسجيل الدخول السريع بعد أول دخول بكلمة المرور."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "11f1653b-2335-4f9d-82db-b5534fcb2624"
+      }
+    }
+  }
+}
