@@ -1,0 +1,41 @@
+{
+  "name": "finance-mobile",
+  "private": true,
+  "main": "index.js",
+  "version": "1.0.3",
+  "scripts": {
+    "start": "expo start --host lan --port 8081 --clear",
+    "start:8081": "expo start --host lan --port 8081 --clear",
+    "android": "expo start --android --port 8081",
+    "ios": "expo start --ios --port 8081",
+    "web": "expo start --web --port 8081"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^15.0.3",
+    "@react-native-community/datetimepicker": "8.6.0",
+    "@react-navigation/bottom-tabs": "^7.15.5",
+    "@react-navigation/native": "^7.1.33",
+    "expo": "~55.0.17",
+    "expo-constants": "~55.0.15",
+    "expo-file-system": "~55.0.17",
+    "expo-linking": "~55.0.14",
+    "expo-local-authentication": "~55.0.13",
+    "expo-print": "~55.0.13",
+    "expo-router": "~55.0.13",
+    "expo-secure-store": "~55.0.13",
+    "expo-sharing": "~55.0.18",
+    "expo-status-bar": "~55.0.5",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-native": "0.83.6",
+    "react-native-gesture-handler": "~2.30.0",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
+    "react-native-web": "~0.21.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "babel-preset-expo": "~55.0.0",
+    "typescript": "~5.9.2"
+  }
+}
