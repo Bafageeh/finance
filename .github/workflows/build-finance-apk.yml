@@ -42,13 +42,33 @@ jobs:
         run: |
           if [ -f finance-mobile/package.json ]; then
             echo "dir=finance-mobile" >> "$GITHUB_OUTPUT"
+            echo "overlay=false" >> "$GITHUB_OUTPUT"
           elif [ -f finance-mobile-starter/package.json ]; then
             echo "dir=finance-mobile-starter" >> "$GITHUB_OUTPUT"
+            echo "overlay=true" >> "$GITHUB_OUTPUT"
           else
             echo "No mobile package.json was found."
             find . -maxdepth 3 -name package.json -print
             exit 1
           fi
+
+      - name: Overlay finance-mobile source onto build app
+        if: steps.mobile.outputs.overlay == 'true'
+        shell: bash
+        run: |
+          if [ -d finance-mobile/src ]; then
+            echo "Using package/build files from finance-mobile-starter and source code from finance-mobile/src"
+            rm -rf finance-mobile-starter/src
+            cp -a finance-mobile/src finance-mobile-starter/src
+          else
+            echo "finance-mobile/src not found; using finance-mobile-starter as-is"
+          fi
+
+      - name: Show build source proof
+        shell: bash
+        run: |
+          echo "Build dir: ${{ steps.mobile.outputs.dir }}"
+          test -f "${{ steps.mobile.outputs.dir }}/src/components/ClientListItem.tsx" && grep -n "isDoneClient\|!isDoneClient\|رأس المال المتبقي\|الدفعة القادمة" "${{ steps.mobile.outputs.dir }}/src/components/ClientListItem.tsx" || true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -117,4 +137,4 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-# Fresh APK trigger: 2026-07-09T20:42:00+03:00
+# Source overlay APK trigger: 2026-07-10T00:25:00+03:00
