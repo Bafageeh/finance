@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AhmedIntegrationController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
 use App\Http\Controllers\Api\ClientReminderController;
+use App\Http\Controllers\Api\FastClientListController;
 use App\Http\Controllers\Api\FollowUpController;
 use App\Http\Controllers\Api\OverdueWhatsAppReportController;
 use App\Http\Controllers\Api\PartnerClientController;
@@ -44,7 +45,8 @@ Route::prefix('v1')->group(function () {
         Route::get('partner-clients', [PartnerClientController::class, 'index']);
         Route::get('partner-clients/{client}', [PartnerClientController::class, 'show']);
         Route::post('clients/safe-import', [SafeClientImportController::class, 'store']);
-        Route::apiResource('clients', ClientController::class);
+        Route::get('clients', [FastClientListController::class, 'index']);
+        Route::apiResource('clients', ClientController::class)->except(['index']);
         Route::post('clients/{client}/pay', [ClientController::class, 'recordPayment']);
         Route::delete('clients/{client}/pay/{periodKey}', [ClientController::class, 'removePayment']);
 
