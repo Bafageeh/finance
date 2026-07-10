@@ -8,9 +8,11 @@ class FormattedActiveLateClientsXlsxReportController extends ActiveLateClientsXl
 {
     private const FIRST_INFORMATION_ROW = 2;
     private const LAST_INFORMATION_ROW = 10;
+    private const MONTHS_ROW = 3;
     private const INFORMATION_LABEL_STYLE = 14;
     private const INFORMATION_TEXT_STYLE = 15;
     private const INFORMATION_NUMBER_STYLE = 16;
+    private const INFORMATION_INTEGER_STYLE = 17;
 
     public function download(): Response
     {
@@ -102,12 +104,16 @@ class FormattedActiveLateClientsXlsxReportController extends ActiveLateClientsXl
                 $numberStyle = '<xf numFmtId="164" fontId="0" fillId="8" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
                     . '<alignment horizontal="center" vertical="center" wrapText="1" readingOrder="2"/>'
                     . '</xf>';
+                $integerStyle = '<xf numFmtId="1" fontId="0" fillId="8" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
+                    . '<alignment horizontal="center" vertical="center" wrapText="1" readingOrder="2"/>'
+                    . '</xf>';
 
-                return '<cellXfs count="' . ((int) $matches[1] + 3) . '">'
+                return '<cellXfs count="' . ((int) $matches[1] + 4) . '">'
                     . $matches[2]
                     . $labelStyle
                     . $textStyle
                     . $numberStyle
+                    . $integerStyle
                     . '</cellXfs>';
             },
             $styles,
@@ -135,22 +141,37 @@ class FormattedActiveLateClientsXlsxReportController extends ActiveLateClientsXl
                     return $matches[0];
                 }
 
+                $lastCellReference = null;
+                if ($rowNumber === self::MONTHS_ROW) {
+                    preg_match_all('/<c r="([A-Z]+\d+)"/', $matches[2], $references);
+                    $allReferences = $references[1] ?? [];
+                    $lastCellReference = $allReferences !== [] ? end($allReferences) : null;
+                }
+
                 $cells = preg_replace_callback(
                     '/<c r="([A-Z]+)(\d+)" s="\d+"([^>]*)>(.*?)<\/c>/s',
-                    function (array $cell): string {
+                    function (array $cell) use ($rowNumber, $lastCellReference): string {
                         $column = $cell[1];
+                        $reference = $column . $cell[2];
                         $attributes = $cell[3];
                         $content = $cell[4];
 
+                        if ($rowNumber === self::MONTHS_ROW && $reference === $lastCellReference) {
+                            return '<c r="' . $reference . '" s="' . self::INFORMATION_TEXT_STYLE . '" t="inlineStr">'
+                                . '<is><t xml:space="preserve"></t></is></c>';
+                        }
+
                         if ($column === 'A') {
                             $style = self::INFORMATION_LABEL_STYLE;
+                        } elseif ($rowNumber === self::MONTHS_ROW && str_contains($content, '<v>')) {
+                            $style = self::INFORMATION_INTEGER_STYLE;
                         } elseif (str_contains($content, '<v>')) {
                             $style = self::INFORMATION_NUMBER_STYLE;
                         } else {
                             $style = self::INFORMATION_TEXT_STYLE;
                         }
 
-                        return '<c r="' . $column . $cell[2] . '" s="' . $style . '"' . $attributes . '>'
+                        return '<c r="' . $reference . '" s="' . $style . '"' . $attributes . '>'
                             . $content
                             . '</c>';
                     },
