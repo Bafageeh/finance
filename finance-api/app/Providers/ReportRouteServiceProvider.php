@@ -2,7 +2,7 @@
 
 namespace App\Providers;
 
-use App\Http\Controllers\Api\ActiveLateClientsXlsxReportController;
+use App\Http\Controllers\Api\FormattedActiveLateClientsXlsxReportController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -12,6 +12,6 @@ class ReportRouteServiceProvider extends ServiceProvider
     {
         Route::middleware('finance.auth')
             ->prefix('api/v1')
-            ->get('reports/active-late-clients-xlsx', [ActiveLateClientsXlsxReportController::class, 'download']);
+            ->get('reports/active-late-clients-xlsx', [FormattedActiveLateClientsXlsxReportController::class, 'download']);
     }
 }
