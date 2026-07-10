@@ -5,111 +5,106 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use Carbon\Carbon;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class ActiveLateClientsXlsxReportController extends Controller
 {
-    public function download(): StreamedResponse
+    public function download(): Response
     {
         $clients = Client::with('payments')->orderBy('name')->get()
-            ->filter(fn (Client $c) => ! $c->has_court && ! in_array((string) $c->status, ['done', 'stuck', 'cancelled'], true) && $c->getRemainingAmount() > 0.01)
+            ->filter(fn (Client $client) => ! $client->has_court
+                && ! in_array((string) $client->status, ['done', 'stuck', 'cancelled'], true)
+                && $client->getRemainingAmount() > 0.01)
             ->values();
 
-        $book = new Spreadsheet();
-        $sheet = $book->getActiveSheet();
-        $sheet->setTitle('التقرير');
-        $sheet->setRightToLeft(true);
-
-        $headers = array_merge(['البيان'], $clients->pluck('name')->all(), ['الإجمالي']);
-        $row = 1;
-        $this->row($sheet, $row, $headers, '0F172A', 'FFFFFF', true);
+        $rows = [];
+        $rows[] = $this->styledRow(
+            array_merge(['البيان'], $clients->pluck('name')->all(), ['الإجمالي']),
+            1,
+        );
 
         $info = [
-            'تاريخ العقد' => fn ($c) => optional($c->contract_date)->format('Y-m-d') ?: '',
-            'عدد الشهور' => fn ($c) => $c->months ?: 0,
-            'القيمة التمويلية' => fn ($c) => $c->getFinancedAmount(),
-            'قيمة السند المطالبة' => fn ($c) => $c->getCalculatedBondTotal(),
-            'القسط الشهري' => fn ($c) => $c->getMonthlyInstallment(),
-            'نسبة الربح' => fn ($c) => $c->getEffectiveRate(),
-            'نسبة الربح السنوي' => fn ($c) => $c->getEffectiveRate() * 12,
-            'ربح أحمد السنوي' => fn ($c) => $c->getSummary()['ahmad_monthly'] * 12,
-            'ربح أحمد الشهري' => fn ($c) => $c->getSummary()['ahmad_monthly'],
+            'تاريخ العقد' => fn (Client $client) => optional($client->contract_date)->format('Y-m-d') ?: '',
+            'عدد الشهور' => fn (Client $client) => $client->months ?: 0,
+            'القيمة التمويلية' => fn (Client $client) => $client->getFinancedAmount(),
+            'قيمة السند المطالبة' => fn (Client $client) => $client->getCalculatedBondTotal(),
+            'القسط الشهري' => fn (Client $client) => $client->getMonthlyInstallment(),
+            'نسبة الربح' => fn (Client $client) => $client->getEffectiveRate(),
+            'نسبة الربح السنوي' => fn (Client $client) => $client->getEffectiveRate() * 12,
+            'ربح أحمد السنوي' => fn (Client $client) => $client->getSummary()['ahmad_monthly'] * 12,
+            'ربح أحمد الشهري' => fn (Client $client) => $client->getSummary()['ahmad_monthly'],
         ];
 
         foreach ($info as $label => $getter) {
-            $row++;
             $values = [$label];
-            $total = 0;
+            $total = 0.0;
             foreach ($clients as $client) {
                 $value = $getter($client);
-                if (is_numeric($value)) $total += (float) $value;
+                if (is_numeric($value)) {
+                    $total += (float) $value;
+                }
                 $values[] = $value;
             }
-            $values[] = $total ?: '';
-            $this->row($sheet, $row, $values, 'FFFFFF');
-            $this->style($sheet, "A{$row}", 'E2E8F0', '0F172A', true);
-            $this->style($sheet, $this->cell($clients->count() + 2, $row), 'FEF3C7', '0F172A', true);
+            $values[] = abs($total) > 0.00001 ? round($total, 4) : '';
+
+            $row = $this->styledRow($values, 0);
+            $row[0]['style'] = 2;
+            $row[count($row) - 1]['style'] = 3;
+            $rows[] = $row;
         }
 
         foreach ($this->periods($clients) as $period) {
-            $row++;
-            $sheet->setCellValue("A{$row}", $period->format('m / Y'));
-            $this->style($sheet, "A{$row}", 'E2E8F0', '0F172A', true);
-            $total = 0;
-            foreach ($clients as $i => $client) {
-                $slot = collect($client->generateSchedule())->firstWhere('period_key', $period->format('Y-m'));
-                $cell = $this->cell($i + 2, $row);
+            $row = [$this->cell($period->format('m / Y'), 2)];
+            $total = 0.0;
+
+            foreach ($clients as $client) {
+                $slot = collect($client->generateSchedule())
+                    ->firstWhere('period_key', $period->format('Y-m'));
                 $paid = (float) ($slot['recorded_paid_amount'] ?? 0);
                 $required = (float) ($slot['installment_amount'] ?? 0);
+
                 if ($paid > 0) {
-                    $sheet->setCellValue($cell, $this->money($paid));
-                    $this->style($sheet, $cell, 'DCFCE7', '166534', true);
+                    $row[] = $this->cell(round($paid, 2), 4);
                     $total += $paid;
                 } elseif ($required > 0 && $period->lessThanOrEqualTo(now()->startOfMonth())) {
-                    $sheet->setCellValue($cell, '');
-                    $this->style($sheet, $cell, 'FEE2E2', '991B1B', true);
+                    $row[] = $this->cell('', 6);
                 } elseif ($required > 0) {
-                    $sheet->setCellValue($cell, '');
-                    $this->style($sheet, $cell, 'DBEAFE', '1D4ED8', true);
+                    $row[] = $this->cell('', 5);
+                } else {
+                    $row[] = $this->cell('', 0);
                 }
             }
-            $cell = $this->cell($clients->count() + 2, $row);
-            $sheet->setCellValue($cell, $total ? $this->money($total) : '');
-            $this->style($sheet, $cell, 'FEF3C7', '0F172A', true);
+
+            $row[] = $this->cell($total > 0 ? round($total, 2) : '', 3);
+            $rows[] = $row;
         }
 
         $footers = [
-            'مجموع المدفوع لكل عميل' => fn ($c) => $c->getSummary()['paid_amount'],
-            'المتبقي لتغطية قيمة السند المطلوب' => fn ($c) => $c->getSummary()['remaining_amount'],
-            'المتبقي من رأس المال' => fn ($c) => $c->getSummary()['remaining_principal'],
+            'مجموع المدفوع لكل عميل' => fn (Client $client) => $client->getSummary()['paid_amount'],
+            'المتبقي لتغطية قيمة السند المطلوب' => fn (Client $client) => $client->getSummary()['remaining_amount'],
+            'المتبقي من رأس المال' => fn (Client $client) => $client->getSummary()['remaining_principal'],
         ];
 
         foreach ($footers as $label => $getter) {
-            $row++;
             $values = [$label];
-            $total = 0;
+            $total = 0.0;
             foreach ($clients as $client) {
                 $value = (float) $getter($client);
                 $total += $value;
-                $values[] = $this->money($value);
+                $values[] = round($value, 2);
             }
-            $values[] = $this->money($total);
-            $this->row($sheet, $row, $values, 'FEF3C7', '0F172A', true);
+            $values[] = round($total, 2);
+            $rows[] = $this->styledRow($values, 3);
         }
 
-        foreach (range(1, $clients->count() + 2) as $col) {
-            $sheet->getColumnDimensionByColumn($col)->setWidth($col === 1 ? 28 : 18);
-        }
-        $sheet->freezePane('B2');
+        $xlsx = $this->buildXlsx($rows, $clients->count() + 2);
+        $filename = 'active-late-clients-' . now()->format('Y-m-d-His') . '.xlsx';
 
-        return response()->streamDownload(function () use ($book) {
-            (new Xlsx($book))->save('php://output');
-        }, 'active-late-clients-' . now()->format('Y-m-d-His') . '.xlsx', [
+        return response($xlsx, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Length' => (string) strlen($xlsx),
+            'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
         ]);
     }
 
@@ -121,46 +116,247 @@ class ActiveLateClientsXlsxReportController extends Controller
                 $all->push(Carbon::parse($slot['period_key'] . '-01')->startOfMonth());
             }
         }
-        if ($all->isEmpty()) return collect([now()->startOfMonth()]);
+
+        if ($all->isEmpty()) {
+            return collect([now()->startOfMonth()]);
+        }
+
         $start = $all->min()->copy();
-        $end = $all->max()->greaterThan(now()->startOfMonth()) ? $all->max()->copy() : now()->startOfMonth();
+        $end = $all->max()->greaterThan(now()->startOfMonth())
+            ? $all->max()->copy()
+            : now()->startOfMonth();
         $range = collect();
-        while ($start->lessThanOrEqualTo($end)) { $range->push($start->copy()); $start->addMonthNoOverflow(); }
+
+        while ($start->lessThanOrEqualTo($end)) {
+            $range->push($start->copy());
+            $start->addMonthNoOverflow();
+        }
+
         return $range;
     }
 
-    private function row($sheet, int $row, array $values, string $fill, string $font = '0F172A', bool $bold = false): void
+    private function cell(mixed $value, int $style = 0): array
     {
-        foreach ($values as $i => $value) {
-            $cell = $this->cell($i + 1, $row);
-            $sheet->setCellValue($cell, $this->latin($value));
-            $this->style($sheet, $cell, $fill, $font, $bold);
+        return ['value' => $value, 'style' => $style];
+    }
+
+    private function styledRow(array $values, int $style): array
+    {
+        return array_map(fn (mixed $value) => $this->cell($value, $style), $values);
+    }
+
+    private function buildXlsx(array $rows, int $columnCount): string
+    {
+        $sheetRows = [];
+        foreach ($rows as $rowIndex => $row) {
+            $cells = [];
+            foreach ($row as $columnIndex => $cell) {
+                $reference = $this->columnName($columnIndex + 1) . ($rowIndex + 1);
+                $style = (int) ($cell['style'] ?? 0);
+                $value = $cell['value'] ?? '';
+
+                if (is_int($value) || is_float($value)) {
+                    $cells[] = '<c r="' . $reference . '" s="' . $style . '"><v>'
+                        . $this->number($value) . '</v></c>';
+                } else {
+                    $cells[] = '<c r="' . $reference . '" s="' . $style . '" t="inlineStr"><is><t xml:space="preserve">'
+                        . $this->xml($this->latin($value)) . '</t></is></c>';
+                }
+            }
+            $sheetRows[] = '<row r="' . ($rowIndex + 1) . '">' . implode('', $cells) . '</row>';
         }
+
+        $lastColumn = $this->columnName(max(1, $columnCount));
+        $sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            . 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            . '<sheetViews><sheetView rightToLeft="1" workbookViewId="0">'
+            . '<pane xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight" state="frozen"/>'
+            . '</sheetView></sheetViews>'
+            . '<cols><col min="1" max="1" width="28" customWidth="1"/>'
+            . '<col min="2" max="' . max(2, $columnCount) . '" width="18" customWidth="1"/></cols>'
+            . '<sheetData>' . implode('', $sheetRows) . '</sheetData>'
+            . '<autoFilter ref="A1:' . $lastColumn . '1"/>'
+            . '</worksheet>';
+
+        $styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            . '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            . '<fonts count="4">'
+            . '<font><sz val="11"/><name val="Arial"/><family val="2"/></font>'
+            . '<font><b/><color rgb="FFFFFFFF"/><sz val="11"/><name val="Arial"/></font>'
+            . '<font><b/><color rgb="FF0F172A"/><sz val="11"/><name val="Arial"/></font>'
+            . '<font><b/><color rgb="FF991B1B"/><sz val="11"/><name val="Arial"/></font>'
+            . '</fonts>'
+            . '<fills count="8">'
+            . '<fill><patternFill patternType="none"/></fill>'
+            . '<fill><patternFill patternType="gray125"/></fill>'
+            . '<fill><patternFill patternType="solid"><fgColor rgb="FF0F172A"/><bgColor indexed="64"/></patternFill></fill>'
+            . '<fill><patternFill patternType="solid"><fgColor rgb="FFE2E8F0"/><bgColor indexed="64"/></patternFill></fill>'
+            . '<fill><patternFill patternType="solid"><fgColor rgb="FFFEF3C7"/><bgColor indexed="64"/></patternFill></fill>'
+            . '<fill><patternFill patternType="solid"><fgColor rgb="FFDCFCE7"/><bgColor indexed="64"/></patternFill></fill>'
+            . '<fill><patternFill patternType="solid"><fgColor rgb="FFDBEAFE"/><bgColor indexed="64"/></patternFill></fill>'
+            . '<fill><patternFill patternType="solid"><fgColor rgb="FFFEE2E2"/><bgColor indexed="64"/></patternFill></fill>'
+            . '</fills>'
+            . '<borders count="2"><border/><border>'
+            . '<left style="thin"><color rgb="FFE2E8F0"/></left>'
+            . '<right style="thin"><color rgb="FFE2E8F0"/></right>'
+            . '<top style="thin"><color rgb="FFE2E8F0"/></top>'
+            . '<bottom style="thin"><color rgb="FFE2E8F0"/></bottom>'
+            . '</border></borders>'
+            . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+            . '<cellXfs count="7">'
+            . $this->xf(0, 0, 1)
+            . $this->xf(1, 2, 1)
+            . $this->xf(2, 3, 1)
+            . $this->xf(2, 4, 1)
+            . $this->xf(2, 5, 1)
+            . $this->xf(2, 6, 1)
+            . $this->xf(3, 7, 1)
+            . '</cellXfs>'
+            . '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
+            . '</styleSheet>';
+
+        $files = [
+            '[Content_Types].xml' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+                . '<Default Extension="xml" ContentType="application/xml"/>'
+                . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+                . '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+                . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+                . '</Types>',
+            '_rels/.rels' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+                . '</Relationships>',
+            'xl/workbook.xml' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                . '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+                . 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                . '<workbookViews><workbookView firstSheet="0" activeTab="0"/></workbookViews>'
+                . '<sheets><sheet name="التقرير" sheetId="1" r:id="rId1"/></sheets>'
+                . '</workbook>',
+            'xl/_rels/workbook.xml.rels' => '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                . '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+                . '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+                . '</Relationships>',
+            'xl/styles.xml' => $styles,
+            'xl/worksheets/sheet1.xml' => $sheet,
+        ];
+
+        return $this->zip($files);
     }
 
-    private function style($sheet, string $cell, string $fill, string $font = '0F172A', bool $bold = false): void
+    private function xf(int $fontId, int $fillId, int $borderId): string
     {
-        $sheet->getStyle($cell)->applyFromArray([
-            'font' => ['bold' => $bold, 'color' => ['rgb' => $font], 'name' => 'Arial', 'size' => 11],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => $fill]],
-            'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
-        ]);
+        return '<xf numFmtId="0" fontId="' . $fontId . '" fillId="' . $fillId
+            . '" borderId="' . $borderId . '" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
+            . '<alignment horizontal="right" vertical="center" wrapText="1" readingOrder="2"/>'
+            . '</xf>';
     }
 
-    private function cell(int $column, int $row): string
+    private function zip(array $files): string
+    {
+        $body = '';
+        $directory = '';
+        $offset = 0;
+        $count = 0;
+
+        foreach ($files as $name => $content) {
+            $name = (string) $name;
+            $content = (string) $content;
+            $nameLength = strlen($name);
+            $size = strlen($content);
+            $crc = (int) sprintf('%u', crc32($content));
+            $flags = 0x0800;
+
+            $local = pack(
+                'VvvvvvVVVvv',
+                0x04034b50,
+                20,
+                $flags,
+                0,
+                0,
+                0,
+                $crc,
+                $size,
+                $size,
+                $nameLength,
+                0,
+            ) . $name . $content;
+
+            $directory .= pack(
+                'VvvvvvvVVVvvvvvVV',
+                0x02014b50,
+                20,
+                20,
+                $flags,
+                0,
+                0,
+                0,
+                $crc,
+                $size,
+                $size,
+                $nameLength,
+                0,
+                0,
+                0,
+                0,
+                0,
+                $offset,
+            ) . $name;
+
+            $body .= $local;
+            $offset += strlen($local);
+            $count++;
+        }
+
+        $directoryOffset = strlen($body);
+        $body .= $directory;
+        $body .= pack(
+            'VvvvvVVv',
+            0x06054b50,
+            0,
+            0,
+            $count,
+            $count,
+            strlen($directory),
+            $directoryOffset,
+            0,
+        );
+
+        return $body;
+    }
+
+    private function columnName(int $column): string
     {
         $name = '';
-        while ($column > 0) { $mod = ($column - 1) % 26; $name = chr(65 + $mod) . $name; $column = intdiv($column - 1, 26); }
-        return $name . $row;
+        while ($column > 0) {
+            $mod = ($column - 1) % 26;
+            $name = chr(65 + $mod) . $name;
+            $column = intdiv($column - 1, 26);
+        }
+
+        return $name;
     }
 
-    private function money($value): string
+    private function number(int|float $value): string
     {
-        return number_format(round((float) ($value ?? 0), 2), 2, '.', '');
+        return rtrim(rtrim(number_format((float) $value, 4, '.', ''), '0'), '.');
     }
 
-    private function latin($value): string
+    private function xml(mixed $value): string
     {
-        return strtr((string) ($value ?? ''), ['٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9','٫'=>'.','٬'=>',']);
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/u', '', (string) $value) ?? '';
+        return htmlspecialchars($text, ENT_QUOTES | ENT_XML1, 'UTF-8');
+    }
+
+    private function latin(mixed $value): string
+    {
+        return strtr((string) ($value ?? ''), [
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+            '٫' => '.', '٬' => ',',
+        ]);
     }
 }
