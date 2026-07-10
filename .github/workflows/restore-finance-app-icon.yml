@@ -1,0 +1,77 @@
+name: Restore Finance App Icon
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/restore-finance-app-icon.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  restore-icon:
+    name: Copy previous icon into finance-mobile
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore icon assets and configuration
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          SOURCE_DIR="finance-mobile-starter/assets"
+          TARGET_DIR="finance-mobile/assets"
+
+          test -f "$SOURCE_DIR/icon.png"
+          test -f "$SOURCE_DIR/adaptive-icon.png"
+          test -f "finance-mobile/app.json"
+
+          mkdir -p "$TARGET_DIR"
+          cp -f "$SOURCE_DIR/icon.png" "$TARGET_DIR/icon.png"
+          cp -f "$SOURCE_DIR/adaptive-icon.png" "$TARGET_DIR/adaptive-icon.png"
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('finance-mobile/app.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          expo = data.setdefault('expo', {})
+          expo['icon'] = './assets/icon.png'
+          android = expo.setdefault('android', {})
+          android['adaptiveIcon'] = {
+              'foregroundImage': './assets/adaptive-icon.png',
+              'backgroundColor': '#ffffff',
+          }
+          path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+          echo "Restored icon files:"
+          file "$TARGET_DIR/icon.png" "$TARGET_DIR/adaptive-icon.png"
+          sha256sum "$TARGET_DIR/icon.png" "$SOURCE_DIR/icon.png"
+          sha256sum "$TARGET_DIR/adaptive-icon.png" "$SOURCE_DIR/adaptive-icon.png"
+
+      - name: Commit restored icon
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add finance-mobile/app.json finance-mobile/assets/icon.png finance-mobile/assets/adaptive-icon.png
+
+          if git diff --cached --quiet; then
+            echo "The Finance icon is already restored."
+            exit 0
+          fi
+
+          git commit -m "Restore Finance mobile app icon"
+          git push origin HEAD:main
