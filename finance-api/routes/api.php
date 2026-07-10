@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AccountStatsController;
 use App\Http\Controllers\Api\AhmedIntegrationController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClientController;
@@ -41,7 +42,7 @@ Route::prefix('v1')->group(function () {
         Route::post('password/change', [AuthController::class, 'changePassword'])->middleware('throttle:6,1');
         Route::get('admin/account-list', [AuthController::class, 'accounts'])->middleware('throttle:20,1');
 
-        Route::get('stats', [ClientController::class, 'stats']);
+        Route::get('stats', [AccountStatsController::class, 'index']);
         Route::get('partner-clients', [PartnerClientController::class, 'index']);
         Route::get('partner-clients/{client}', [PartnerClientController::class, 'show']);
         Route::post('clients/safe-import', [SafeClientImportController::class, 'store']);
