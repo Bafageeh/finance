@@ -6,6 +6,12 @@ use Symfony\Component\HttpFoundation\Response;
 
 class FormattedActiveLateClientsXlsxReportController extends ActiveLateClientsXlsxReportController
 {
+    private const FIRST_INFORMATION_ROW = 2;
+    private const LAST_INFORMATION_ROW = 10;
+    private const INFORMATION_LABEL_STYLE = 14;
+    private const INFORMATION_TEXT_STYLE = 15;
+    private const INFORMATION_NUMBER_STYLE = 16;
+
     public function download(): Response
     {
         $response = parent::download();
@@ -21,8 +27,11 @@ class FormattedActiveLateClientsXlsxReportController extends ActiveLateClientsXl
             return $response;
         }
 
-        $files['xl/styles.xml'] = $this->addCenteredNumberStyles($files['xl/styles.xml']);
-        $files['xl/worksheets/sheet1.xml'] = $this->applyNumberStyles($files['xl/worksheets/sheet1.xml']);
+        $styles = $this->addCenteredNumberStyles($files['xl/styles.xml']);
+        $files['xl/styles.xml'] = $this->addInformationRowStyles($styles);
+
+        $sheet = $this->applyNumberStyles($files['xl/worksheets/sheet1.xml']);
+        $files['xl/worksheets/sheet1.xml'] = $this->applyInformationRowStyles($sheet);
 
         $xlsx = $this->buildStoredZip($files);
         $response->setContent($xlsx);
@@ -69,11 +78,87 @@ class FormattedActiveLateClientsXlsxReportController extends ActiveLateClientsXl
         ) ?? $styles;
     }
 
+    private function addInformationRowStyles(string $styles): string
+    {
+        $styles = preg_replace_callback(
+            '/<fills count="(\d+)">(.*?)<\/fills>/s',
+            fn (array $matches): string => '<fills count="' . ((int) $matches[1] + 1) . '">'
+                . $matches[2]
+                . '<fill><patternFill patternType="solid"><fgColor rgb="FFEDE9FE"/><bgColor indexed="64"/></patternFill></fill>'
+                . '</fills>',
+            $styles,
+            1,
+        ) ?? $styles;
+
+        return preg_replace_callback(
+            '/<cellXfs count="(\d+)">(.*?)<\/cellXfs>/s',
+            function (array $matches): string {
+                $labelStyle = '<xf numFmtId="0" fontId="2" fillId="8" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
+                    . '<alignment horizontal="right" vertical="center" wrapText="1" readingOrder="2"/>'
+                    . '</xf>';
+                $textStyle = '<xf numFmtId="0" fontId="0" fillId="8" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
+                    . '<alignment horizontal="center" vertical="center" wrapText="1" readingOrder="2"/>'
+                    . '</xf>';
+                $numberStyle = '<xf numFmtId="164" fontId="0" fillId="8" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
+                    . '<alignment horizontal="center" vertical="center" wrapText="1" readingOrder="2"/>'
+                    . '</xf>';
+
+                return '<cellXfs count="' . ((int) $matches[1] + 3) . '">'
+                    . $matches[2]
+                    . $labelStyle
+                    . $textStyle
+                    . $numberStyle
+                    . '</cellXfs>';
+            },
+            $styles,
+            1,
+        ) ?? $styles;
+    }
+
     private function applyNumberStyles(string $sheet): string
     {
         return preg_replace_callback(
             '/<c r="([^"]+)" s="(\d+)"><v>/',
             fn (array $matches): string => '<c r="' . $matches[1] . '" s="' . ((int) $matches[2] + 7) . '"><v>',
+            $sheet,
+        ) ?? $sheet;
+    }
+
+    private function applyInformationRowStyles(string $sheet): string
+    {
+        return preg_replace_callback(
+            '/<row r="(\d+)">(.*?)<\/row>/s',
+            function (array $matches): string {
+                $rowNumber = (int) $matches[1];
+
+                if ($rowNumber < self::FIRST_INFORMATION_ROW || $rowNumber > self::LAST_INFORMATION_ROW) {
+                    return $matches[0];
+                }
+
+                $cells = preg_replace_callback(
+                    '/<c r="([A-Z]+)(\d+)" s="\d+"([^>]*)>(.*?)<\/c>/s',
+                    function (array $cell): string {
+                        $column = $cell[1];
+                        $attributes = $cell[3];
+                        $content = $cell[4];
+
+                        if ($column === 'A') {
+                            $style = self::INFORMATION_LABEL_STYLE;
+                        } elseif (str_contains($content, '<v>')) {
+                            $style = self::INFORMATION_NUMBER_STYLE;
+                        } else {
+                            $style = self::INFORMATION_TEXT_STYLE;
+                        }
+
+                        return '<c r="' . $column . $cell[2] . '" s="' . $style . '"' . $attributes . '>'
+                            . $content
+                            . '</c>';
+                    },
+                    $matches[2],
+                ) ?? $matches[2];
+
+                return '<row r="' . $rowNumber . '">' . $cells . '</row>';
+            },
             $sheet,
         ) ?? $sheet;
     }
