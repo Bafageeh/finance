@@ -3,12 +3,12 @@
     "name": "Finance Mobile",
     "slug": "finance-mobile",
     "scheme": "finance-mobile",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.example.financemobile",
-      "versionCode": 5,
+      "versionCode": 6,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
