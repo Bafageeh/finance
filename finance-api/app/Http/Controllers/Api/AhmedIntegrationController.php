@@ -9,38 +9,86 @@ use Illuminate\Http\JsonResponse;
 
 class AhmedIntegrationController extends Controller
 {
+    private const AHMED_ACCOUNT_ID = 1;
+
     public function summary(): JsonResponse
     {
-        $clients = Client::with('payments')->get();
+        // جميع القيم المرسلة إلى تطبيق أحمد تخص حساب الأدمن رقم 1 فقط.
+        $clients = Client::with('payments')
+            ->where('account_id', self::AHMED_ACCOUNT_ID)
+            ->get();
+
         $today = Carbon::today();
 
-        $includedClients = $clients->filter(fn ($client) => $this->isIncludedForAhmedMonthlyProfit($client, $today));
+        $includedClients = $clients->filter(
+            fn ($client) => $this->isIncludedForAhmedMonthlyProfit($client, $today)
+        );
+
         $stuckClients = $clients->filter(fn ($client) => $this->isStuckClient($client));
         $doneClients = $clients->filter(fn ($client) => $this->isDoneClient($client));
         $courtClients = $clients->filter(fn ($client) => $this->isCourtClient($client));
-        $overdueClients = $clients->filter(fn ($client) => $this->isOverdueClient($client, $today) && ! $this->isStuckClient($client) && ! $this->isCourtClient($client));
-        $activeClients = $includedClients->filter(fn ($client) => $this->status($client) === 'active' && ! $this->isOverdueClient($client, $today));
 
-        $monthlyInstallmentsTotal = $includedClients->sum(fn ($client) => $client->getMonthlyInstallment());
-        $monthlyProfitTotal = $includedClients->sum(fn ($client) => $client->getMonthlyProfit());
+        // التأخير والنشاط يُحسبان من نفس مجموعة العملاء الداخلة في القيم المالية؛
+        // لذلك لا يمكن أن يتجاوز مجموعهما عدد العملاء المحتسبين.
+        $overdueClients = $includedClients->filter(
+            fn ($client) => $this->isOverdueClient($client, $today)
+        );
 
-        $ahmedMonthlyProfit = $includedClients->sum(fn ($client) => $this->ahmedProfitAmount($client, $client->getMonthlyProfit()));
-        $aliMonthlyProfit = $includedClients->sum(fn ($client) => $this->aliProfitAmount($client, $client->getMonthlyProfit()));
+        $activeClients = $includedClients->filter(
+            fn ($client) => ! $this->isOverdueClient($client, $today)
+        );
 
-        $remainingInstallmentsTotal = $includedClients->sum(fn ($client) => $client->getRemainingAmount());
-        $remainingPrincipalTotal = $includedClients->sum(fn ($client) => $client->getRemainingPrincipal());
-        $ahmedTotalProfit = $includedClients->sum(fn ($client) => $this->ahmedProfitAmount($client, $client->getTotalProfit()));
+        $monthlyInstallmentsTotal = $includedClients->sum(
+            fn ($client) => $client->getMonthlyInstallment()
+        );
 
-        $ahmedStuckProfitDeduction = $stuckClients->sum(fn ($client) => $this->ahmedProfitAmount($client, $client->getTotalProfit()));
-        $ahmedStuckMonthlyProfitDeduction = $stuckClients->sum(fn ($client) => $this->ahmedProfitAmount($client, $client->getMonthlyProfit()));
+        $monthlyProfitTotal = $includedClients->sum(
+            fn ($client) => $client->getMonthlyProfit()
+        );
 
-        $overdueAmount = $overdueClients->sum(fn ($client) => $this->overdueAmount($client, $today));
-        $overdueInstallments = $overdueClients->sum(fn ($client) => $this->overdueCount($client, $today));
+        $ahmedMonthlyProfit = $includedClients->sum(
+            fn ($client) => $this->ahmedProfitAmount($client, $client->getMonthlyProfit())
+        );
+
+        $aliMonthlyProfit = $includedClients->sum(
+            fn ($client) => $this->aliProfitAmount($client, $client->getMonthlyProfit())
+        );
+
+        $remainingInstallmentsTotal = $includedClients->sum(
+            fn ($client) => $client->getRemainingAmount()
+        );
+
+        $remainingPrincipalTotal = $includedClients->sum(
+            fn ($client) => $client->getRemainingPrincipal()
+        );
+
+        $ahmedTotalProfit = $includedClients->sum(
+            fn ($client) => $this->ahmedProfitAmount($client, $client->getTotalProfit())
+        );
+
+        // قيم المتعثرين معلومات مستقلة للعرض فقط؛ لأنهم مستبعدون أصلًا من
+        // includedClients، ولذلك لا تُطرح أرباحهم مرة ثانية من صافي الربح.
+        $ahmedStuckProfitExcluded = $stuckClients->sum(
+            fn ($client) => $this->ahmedProfitAmount($client, $client->getTotalProfit())
+        );
+
+        $ahmedStuckMonthlyProfitExcluded = $stuckClients->sum(
+            fn ($client) => $this->ahmedProfitAmount($client, $client->getMonthlyProfit())
+        );
+
+        $overdueAmount = $overdueClients->sum(
+            fn ($client) => $this->overdueAmount($client, $today)
+        );
+
+        $overdueInstallments = $overdueClients->sum(
+            fn ($client) => $this->overdueCount($client, $today)
+        );
 
         return response()->json([
             'data' => [
                 'source' => 'finance',
                 'source_account' => 'admin@pm.sa',
+                'source_account_id' => self::AHMED_ACCOUNT_ID,
                 'currency' => 'SAR',
                 'synced_at' => now()->toDateTimeString(),
                 'period' => [
@@ -58,14 +106,23 @@ class AhmedIntegrationController extends Controller
                     'remaining_installments_total' => $this->money($remainingInstallmentsTotal),
                     'remaining_principal_total' => $this->money($remainingPrincipalTotal),
                     'ahmed_total_profit' => $this->money($ahmedTotalProfit),
-                    'ahmed_stuck_profit_deduction' => $this->money($ahmedStuckProfitDeduction),
-                    'ahmed_net_profit_after_stuck_deduction' => $this->money($ahmedTotalProfit - $ahmedStuckProfitDeduction),
+
+                    // الأسماء القديمة محفوظة للتوافق مع تطبيق أحمد، لكن القيمة
+                    // أصبحت معلومة مستقلة وليست مبلغًا يُطرح مرة ثانية.
+                    'ahmed_stuck_profit_deduction' => $this->money($ahmedStuckProfitExcluded),
+                    'ahmed_stuck_profit_excluded' => $this->money($ahmedStuckProfitExcluded),
+                    'ahmed_net_profit_after_stuck_deduction' => $this->money($ahmedTotalProfit),
+
                     'ahmed_monthly_profit' => $this->money($ahmedMonthlyProfit),
-                    'ahmed_stuck_monthly_profit_deduction' => $this->money($ahmedStuckMonthlyProfitDeduction),
-                    'ahmed_monthly_net_profit_after_stuck_deduction' => $this->money($ahmedMonthlyProfit - $ahmedStuckMonthlyProfitDeduction),
+                    'ahmed_stuck_monthly_profit_deduction' => $this->money($ahmedStuckMonthlyProfitExcluded),
+                    'ahmed_stuck_monthly_profit_excluded' => $this->money($ahmedStuckMonthlyProfitExcluded),
+                    'ahmed_monthly_net_profit_after_stuck_deduction' => $this->money($ahmedMonthlyProfit),
                 ],
                 'counts' => [
-                    'clients_total' => $clients->count(),
+                    // إجمالي العملاء المعروض في لوحة التمويل: نشط + متأخر.
+                    'clients_total' => $includedClients->count(),
+                    'clients_included' => $includedClients->count(),
+                    'clients_all_in_account' => $clients->count(),
                     'clients_active' => $activeClients->count(),
                     'clients_stuck' => $stuckClients->count(),
                     'clients_done' => $doneClients->count(),
@@ -77,8 +134,11 @@ class AhmedIntegrationController extends Controller
                     'overdue_amount' => $this->money($overdueAmount),
                 ],
                 'rules' => [
-                    'active_monthly_installments' => 'مجموع الأقساط الشهرية للعملاء النشطين والمتأخرين فقط، مع استبعاد المتعثرين والقضايا والمنتهين والملغيين. المتأخر يدخل في الحساب لأنه ليس متعثرًا.',
-                    'ahmed_monthly_profit' => '65% من ربح التمويل الشهري إذا كان علي شريكًا، و100% إذا لم يكن علي شريكًا. يتم احتساب النشطين والمتأخرين فقط، واستبعاد المتعثرين والقضايا والمنتهين والملغيين.',
+                    'account_filter' => 'جميع القيم تخص حساب الأدمن رقم 1 فقط.',
+                    'active_monthly_installments' => 'مجموع الأقساط الشهرية للعملاء النشطين والمتأخرين فقط في حساب الأدمن رقم 1، مع استبعاد المتعثرين والقضايا والمنتهين والملغيين.',
+                    'ahmed_monthly_profit' => '65% من ربح التمويل الشهري إذا كان علي شريكًا، و100% إذا لم يكن علي شريكًا. يتم احتساب النشطين والمتأخرين فقط من حساب الأدمن رقم 1.',
+                    'stuck_profit' => 'المتعثرون مستبعدون من الربح من البداية، وتُعرض قيمة ربحهم كمعلومة مستقلة فقط ولا تُطرح مرة ثانية.',
+                    'overdue' => 'يُعد القسط متأخرًا بعد تجاوز تاريخ استحقاقه، وليس في يوم الاستحقاق نفسه.',
                     'included_statuses' => ['active', 'late', 'overdue'],
                     'excluded_statuses' => ['stuck', 'court', 'done', 'cancelled'],
                 ],
@@ -100,6 +160,7 @@ class AhmedIntegrationController extends Controller
                 'to' => $summary['period']['to'] ?? now()->endOfMonth()->toDateString(),
                 'source' => 'finance',
                 'source_account' => 'admin@pm.sa',
+                'source_account_id' => self::AHMED_ACCOUNT_ID,
                 'synced_at' => $summary['synced_at'] ?? now()->toDateTimeString(),
             ],
         ]);
@@ -107,7 +168,12 @@ class AhmedIntegrationController extends Controller
 
     private function isIncludedForAhmedMonthlyProfit(Client $client, Carbon $today): bool
     {
-        if ($this->isStuckClient($client) || $this->isCourtClient($client) || $this->isDoneClient($client) || $this->isCancelledClient($client)) {
+        if (
+            $this->isStuckClient($client)
+            || $this->isCourtClient($client)
+            || $this->isDoneClient($client)
+            || $this->isCancelledClient($client)
+        ) {
             return false;
         }
 
@@ -117,7 +183,8 @@ class AhmedIntegrationController extends Controller
 
         $status = $this->status($client);
 
-        return in_array($status, ['active', 'late', 'overdue'], true) || $this->isOverdueClient($client, $today);
+        return in_array($status, ['active', 'late', 'overdue'], true)
+            || $this->isOverdueClient($client, $today);
     }
 
     private function ahmedProfitAmount(Client $client, float $profit): float
@@ -134,7 +201,14 @@ class AhmedIntegrationController extends Controller
     {
         $share = strtolower(trim((string) ($client->profit_share ?: 'shared')));
 
-        return ! in_array($share, ['ahmad_only', 'ahmed_only', 'none', 'no_ali', 'ahmad', 'ahmed'], true);
+        return ! in_array($share, [
+            'ahmad_only',
+            'ahmed_only',
+            'none',
+            'no_ali',
+            'ahmad',
+            'ahmed',
+        ], true);
     }
 
     private function isStuckClient(Client $client): bool
@@ -144,22 +218,29 @@ class AhmedIntegrationController extends Controller
 
     private function isCourtClient(Client $client): bool
     {
-        return (bool) ($client->has_court ?? false) || $this->status($client) === 'court';
+        return (bool) ($client->has_court ?? false)
+            || $this->status($client) === 'court';
     }
 
     private function isDoneClient(Client $client): bool
     {
-        return in_array($this->status($client), ['done', 'completed', 'finished'], true) || $client->getRemainingAmount() <= 0.01;
+        return in_array($this->status($client), ['done', 'completed', 'finished'], true)
+            || $client->getRemainingAmount() <= 0.01;
     }
 
     private function isCancelledClient(Client $client): bool
     {
-        return in_array($this->status($client), ['cancelled', 'canceled', 'void', 'deleted'], true);
+        return in_array($this->status($client), [
+            'cancelled',
+            'canceled',
+            'void',
+            'deleted',
+        ], true);
     }
 
     private function isOverdueClient(Client $client, Carbon $today): bool
     {
-        return $this->overdueCount($client, $today) > 0 || in_array($this->status($client), ['late', 'overdue'], true);
+        return $this->overdueCount($client, $today) > 0;
     }
 
     private function overdueCount(Client $client, Carbon $today): int
@@ -191,7 +272,8 @@ class AhmedIntegrationController extends Controller
                 return false;
             }
 
-            return Carbon::parse($dueDate)->lte($today);
+            // لا يصبح القسط متأخرًا في يوم الاستحقاق؛ يبدأ التأخير من اليوم التالي.
+            return Carbon::parse($dueDate)->lt($today);
         }));
     }
 
