@@ -36,7 +36,7 @@ class FormattedActiveLateClientsXlsxReportController extends ActiveLateClientsXl
         if (! str_contains($styles, '<numFmts')) {
             $styles = preg_replace(
                 '/(<styleSheet\b[^>]*>)/',
-                '$1<numFmts count="1"><numFmt numFmtId="164" formatCode="#\,##0.00"/></numFmts>',
+                '$1<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00"/></numFmts>',
                 $styles,
                 1,
             ) ?? $styles;
