@@ -62,11 +62,24 @@ class ActiveLateClientsXlsxReportController extends Controller
                     ->firstWhere('period_key', $period->format('Y-m'));
                 $paid = (float) ($slot['recorded_paid_amount'] ?? 0);
                 $required = (float) ($slot['installment_amount'] ?? 0);
+                $dueDate = null;
+
+                if (! empty($slot['due_date'])) {
+                    try {
+                        $dueDate = Carbon::parse($slot['due_date'])->startOfDay();
+                    } catch (\Throwable $e) {
+                        $dueDate = null;
+                    }
+                }
+
+                $isLate = $required > 0
+                    && $dueDate !== null
+                    && $dueDate->lt(now()->startOfDay());
 
                 if ($paid > 0) {
                     $row[] = $this->cell(round($paid, 2), 4);
                     $total += $paid;
-                } elseif ($required > 0 && $period->lessThanOrEqualTo(now()->startOfMonth())) {
+                } elseif ($isLate) {
                     $row[] = $this->cell('', 6);
                 } elseif ($required > 0) {
                     $row[] = $this->cell('', 5);
