@@ -9,10 +9,15 @@ on:
       - 'finance-api/**'
       - '.github/workflows/deploy-finance-api.yml'
 
+concurrency:
+  group: finance-api-production-deploy
+  cancel-in-progress: false
+
 jobs:
   deploy-api:
     name: Deploy Laravel API to server
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -35,41 +40,37 @@ jobs:
             -o StrictHostKeyChecking=no \
             -o UserKnownHostsFile=/dev/null \
             "${DEPLOY_USER}@${DEPLOY_HOST}" <<'EOF'
-          set -e
+          set -Eeuo pipefail
 
-          REPO_ROOT="/home/pmsa/apps/finance"
+          REPO_ROOT="/mnt/home-storage/home/pmsa/apps/finance"
           REPO_API="${REPO_ROOT}/finance-api"
-          SERVED_API="/home/pmsa/apps/finance-api"
+
+          if [ ! -d "$REPO_ROOT/.git" ]; then
+            echo "Finance repository not found at: $REPO_ROOT"
+            exit 1
+          fi
 
           cd "$REPO_ROOT"
+          git remote set-url origin https://github.com/Bafageeh/finance.git
           git fetch origin main
           git reset --hard origin/main
 
-          # Keep the legacy served API path updated too, because the web server may still point to it.
-          # Preserve runtime files such as .env, storage, vendor, and framework cache folders.
-          mkdir -p "$SERVED_API"
-          rsync -a --delete \
-            --exclude='.env' \
-            --exclude='.env.*' \
-            --exclude='storage' \
-            --exclude='vendor' \
-            --exclude='node_modules' \
-            --exclude='bootstrap/cache/*.php' \
-            "$REPO_API/" "$SERVED_API/"
+          if [ ! -f "$REPO_API/artisan" ]; then
+            echo "Laravel API not found at: $REPO_API"
+            exit 1
+          fi
 
-          cd "$SERVED_API"
+          cd "$REPO_API"
 
           if [ -f composer.json ]; then
-            composer install --no-dev --optimize-autoloader
+            composer install --no-dev --optimize-autoloader --no-interaction
           fi
 
-          if [ -f artisan ]; then
-            php artisan migrate --force
-            php artisan optimize:clear
-            php artisan config:clear
-            php artisan route:clear
-            php artisan cache:clear
-            echo "==> Registered login routes:"
-            php artisan route:list | grep -E 'api/v1/(auth/login|login)' || true
-          fi
+          php artisan migrate --force
+          php artisan optimize:clear
+          php artisan config:cache
+          php artisan route:cache
+
+          echo "==> Finance API deployment completed"
+          php artisan route:list | grep -E 'api/v1/(auth/login|login|reports/active-late-clients-xlsx)' || true
           EOF
