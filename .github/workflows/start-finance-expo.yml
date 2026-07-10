@@ -1,0 +1,95 @@
+name: Start Finance Expo
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/start-finance-expo.yml'
+
+concurrency:
+  group: finance-expo-8081
+  cancel-in-progress: true
+
+jobs:
+  start-expo:
+    name: Start Expo on server
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      SERVER_PORT: ${{ secrets.SERVER_PORT }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+      DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
+
+    steps:
+      - name: Start Expo in background
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          HOST="${SSH_HOST:-${SERVER_HOST:-${DEPLOY_HOST:-}}}"
+          USER="${SSH_USER:-${SERVER_USER:-${DEPLOY_USER:-root}}}"
+          PORT="${SSH_PORT:-${SERVER_PORT:-${DEPLOY_PORT:-22}}}"
+          KEY="${SSH_PRIVATE_KEY:-${SERVER_SSH_KEY:-${DEPLOY_KEY:-}}}"
+
+          if [ -z "$HOST" ] || [ -z "$KEY" ]; then
+            echo "Missing SSH connection secrets."
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/finance_expo_key
+          chmod 600 ~/.ssh/finance_expo_key
+
+          ssh -i ~/.ssh/finance_expo_key \
+            -p "$PORT" \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/dev/null \
+            "$USER@$HOST" 'bash -se' <<'REMOTE'
+          set -Eeuo pipefail
+
+          APP_DIR="/mnt/home-storage/home/pmsa/apps/finance/finance-mobile"
+          LOG_FILE="/tmp/finance-expo-8081.log"
+
+          if [ ! -f "$APP_DIR/package.json" ]; then
+            echo "Finance mobile project not found at: $APP_DIR"
+            exit 1
+          fi
+
+          cd "$APP_DIR"
+
+          if [ ! -d node_modules ]; then
+            npm install --legacy-peer-deps --no-audit --no-fund
+          fi
+
+          pkill -f "expo start.*--port 8081" 2>/dev/null || true
+          pkill -f "expo.*8081" 2>/dev/null || true
+          sleep 2
+
+          nohup npx expo start --host lan --port 8081 --clear \
+            > "$LOG_FILE" 2>&1 < /dev/null &
+
+          EXPO_PID=$!
+          echo "$EXPO_PID" > /tmp/finance-expo-8081.pid
+          sleep 12
+
+          if ! kill -0 "$EXPO_PID" 2>/dev/null; then
+            echo "Expo failed to remain running."
+            tail -n 120 "$LOG_FILE" || true
+            exit 1
+          fi
+
+          echo "Expo is running on port 8081 with PID $EXPO_PID"
+          tail -n 80 "$LOG_FILE" || true
+          REMOTE
