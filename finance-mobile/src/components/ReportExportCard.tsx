@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { exportReportExcelCsv, exportReportPdf } from '@/services/report-export';
 import { ReportDocument } from '@/types/report';
 import { colors } from '@/utils/theme';
 
@@ -9,7 +10,29 @@ interface ReportExportCardProps {
   onExportExcel: () => void;
 }
 
-export function ReportExportCard({ report, onExportPdf, onExportExcel }: ReportExportCardProps) {
+type ReportWithRelated = ReportDocument & {
+  relatedReports?: ReportDocument[];
+};
+
+interface ReportCardBodyProps extends ReportExportCardProps {}
+
+async function exportRelatedPdf(report: ReportDocument) {
+  try {
+    await exportReportPdf(report);
+  } catch (err) {
+    Alert.alert('تصدير PDF', err instanceof Error ? err.message : 'تعذر إنشاء ملف PDF.');
+  }
+}
+
+async function exportRelatedExcel(report: ReportDocument) {
+  try {
+    await exportReportExcelCsv(report);
+  } catch (err) {
+    Alert.alert('تصدير Excel', err instanceof Error ? err.message : 'تعذر إنشاء ملف Excel المتوافق.');
+  }
+}
+
+function ReportCardBody({ report, onExportPdf, onExportExcel }: ReportCardBodyProps) {
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
@@ -48,7 +71,28 @@ export function ReportExportCard({ report, onExportPdf, onExportExcel }: ReportE
   );
 }
 
+export function ReportExportCard({ report, onExportPdf, onExportExcel }: ReportExportCardProps) {
+  const relatedReports = (report as ReportWithRelated).relatedReports || [];
+
+  return (
+    <View style={styles.group}>
+      <ReportCardBody report={report} onExportPdf={onExportPdf} onExportExcel={onExportExcel} />
+      {relatedReports.map((relatedReport) => (
+        <ReportCardBody
+          key={`${relatedReport.title}-${relatedReport.filename}`}
+          report={relatedReport}
+          onExportPdf={() => { void exportRelatedPdf(relatedReport); }}
+          onExportExcel={() => { void exportRelatedExcel(relatedReport); }}
+        />
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  group: {
+    gap: 10,
+  },
   card: {
     borderRadius: 20,
     borderWidth: 1,
