@@ -218,7 +218,7 @@ export default function ReportsScreen() {
 
             {reports.map((report, index) => (
               <ReportExportCard
-                key={report.kind}
+                key={`${report.kind}-${report.title}-${index}`}
                 report={report}
                 onExportPdf={() => void handlePdf(index)}
                 onExportExcel={() => void handleExcel(index)}
@@ -398,5 +398,4 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     lineHeight: 24,
   },
-
 });
