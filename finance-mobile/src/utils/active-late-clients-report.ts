@@ -219,12 +219,31 @@ function buildClientsMatrixReport(allClients: Client[], options: MatrixReportOpt
 }
 
 export function buildAllClientsExceptDoneMatrixReport(allClients: Client[]): ReportDocument {
-  return buildClientsMatrixReport(allClients, {
+  const clients = allClientsExceptDone(allClients);
+  const report = buildClientsMatrixReport(allClients, {
     title: 'تقرير جميع العملاء باستثناء المنتهين',
     subtitle: 'نفس تقرير النشطين والمتأخرين ويشمل جميع حالات العملاء، مع استثناء العملاء المنتهين فقط.',
     filenamePrefix: 'all-clients-except-done-matrix',
     selectClients: allClientsExceptDone,
   });
+
+  const remainingBondTotal = clients.reduce(
+    (sum, client) => sum + n(client.summary?.remaining_amount),
+    0,
+  );
+  const remainingPrincipalTotal = clients.reduce(
+    (sum, client) => sum + n(client.summary?.remaining_principal),
+    0,
+  );
+
+  report.summary = [
+    { label: 'عدد العملاء', value: String(clients.length) },
+    { label: 'المتبقي لتغطية قيمة السند المطلوب', value: formatCurrency(remainingBondTotal) },
+    { label: 'المتبقي من رأس المال', value: formatCurrency(remainingPrincipalTotal) },
+    ...report.summary.slice(3),
+  ];
+
+  return report;
 }
 
 export function buildActiveLateClientsMatrixReport(allClients: Client[]): ReportDocument {
