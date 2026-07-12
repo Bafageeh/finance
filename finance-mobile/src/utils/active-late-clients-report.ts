@@ -8,6 +8,14 @@ type CellTone = 'paid' | 'due' | 'late';
 type StyledReportDocument = ReportDocument & {
   cellStyles?: Record<string, CellTone>;
   legend?: Array<{ label: string; tone: CellTone }>;
+  relatedReports?: ReportDocument[];
+};
+
+type MatrixReportOptions = {
+  title: string;
+  subtitle: string;
+  filenamePrefix: string;
+  selectClients: (clients: Client[]) => Client[];
 };
 
 function n(value: number | string | null | undefined): number {
@@ -39,14 +47,20 @@ function addMonth(period: string): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function sortClients(clients: Client[]): Client[] {
+  return [...clients].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ar'));
+}
+
 function activeOrLateClients(clients: Client[]): Client[] {
-  return clients
-    .filter((client) => {
-      const alert = getClientAlertInfo(client);
-      const remaining = n(client.summary?.remaining_amount);
-      return !client.has_court && client.status !== 'done' && client.status !== 'stuck' && (remaining > 0.01 || alert.overdueCount > 0);
-    })
-    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'ar'));
+  return sortClients(clients.filter((client) => {
+    const alert = getClientAlertInfo(client);
+    const remaining = n(client.summary?.remaining_amount);
+    return !client.has_court && client.status !== 'done' && client.status !== 'stuck' && (remaining > 0.01 || alert.overdueCount > 0);
+  }));
+}
+
+function allClientsExceptDone(clients: Client[]): Client[] {
+  return sortClients(clients.filter((client) => String(client.status || '') !== 'done'));
 }
 
 function itemPeriod(item: PaymentScheduleItem): string | null {
@@ -129,8 +143,8 @@ function scheduleCell(client: Client, period: string, todayPeriod: string): { va
   return { value: '', amount: 0, tone: 'due' };
 }
 
-export function buildActiveLateClientsMatrixReport(allClients: Client[]): ReportDocument {
-  const clients = activeOrLateClients(allClients);
+function buildClientsMatrixReport(allClients: Client[], options: MatrixReportOptions): StyledReportDocument {
+  const clients = options.selectClients(allClients);
   const startPeriod = firstReportPeriod(clients);
   const periods = periodRange(startPeriod, lastReportPeriod(clients));
   const todayPeriod = currentPeriod();
@@ -179,11 +193,11 @@ export function buildActiveLateClientsMatrixReport(allClients: Client[]): Report
     infoRow('المتبقي من رأس المال', clients, remainingPrincipalTotals.map(currency), currency(remainingPrincipalTotals.reduce((sum, value) => sum + value, 0))),
   );
 
-  const document: StyledReportDocument = {
+  return {
     kind: 'portfolio',
-    title: 'تقرير العملاء النشطين والمتأخرين',
-    subtitle: 'يعرض داخل الشهور المبالغ المدفوعة فقط. الأخضر = مدفوع، الأزرق = دفعة مستقبلية، الأحمر = متأخر.',
-    filename: `active-late-clients-matrix-${generatedAt.slice(0, 10)}`,
+    title: options.title,
+    subtitle: options.subtitle,
+    filename: `${options.filenamePrefix}-${generatedAt.slice(0, 10)}`,
     generatedAt,
     summary: [
       { label: 'عدد العملاء', value: String(clients.length) },
@@ -202,6 +216,25 @@ export function buildActiveLateClientsMatrixReport(allClients: Client[]): Report
       { label: 'متأخر', tone: 'late' },
     ],
   };
+}
 
+export function buildAllClientsExceptDoneMatrixReport(allClients: Client[]): ReportDocument {
+  return buildClientsMatrixReport(allClients, {
+    title: 'تقرير جميع العملاء باستثناء المنتهين',
+    subtitle: 'نفس تقرير النشطين والمتأخرين ويشمل جميع حالات العملاء، مع استثناء العملاء المنتهين فقط.',
+    filenamePrefix: 'all-clients-except-done-matrix',
+    selectClients: allClientsExceptDone,
+  });
+}
+
+export function buildActiveLateClientsMatrixReport(allClients: Client[]): ReportDocument {
+  const document = buildClientsMatrixReport(allClients, {
+    title: 'تقرير العملاء النشطين والمتأخرين',
+    subtitle: 'يعرض داخل الشهور المبالغ المدفوعة فقط. الأخضر = مدفوع، الأزرق = دفعة مستقبلية، الأحمر = متأخر.',
+    filenamePrefix: 'active-late-clients-matrix',
+    selectClients: activeOrLateClients,
+  });
+
+  document.relatedReports = [buildAllClientsExceptDoneMatrixReport(allClients)];
   return document;
 }
