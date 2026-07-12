@@ -11,11 +11,7 @@ class ActiveLateClientsXlsxReportController extends Controller
 {
     public function download(): Response
     {
-        $clients = Client::with('payments')->orderBy('name')->get()
-            ->filter(fn (Client $client) => ! $client->has_court
-                && ! in_array((string) $client->status, ['done', 'stuck', 'cancelled'], true)
-                && $client->getRemainingAmount() > 0.01)
-            ->values();
+        $clients = $this->reportClients();
 
         $rows = [];
         $rows[] = $this->styledRow(
@@ -111,7 +107,7 @@ class ActiveLateClientsXlsxReportController extends Controller
         }
 
         $xlsx = $this->buildXlsx($rows, $clients->count() + 2);
-        $filename = 'active-late-clients-' . now()->format('Y-m-d-His') . '.xlsx';
+        $filename = $this->filenamePrefix() . '-' . now()->format('Y-m-d-His') . '.xlsx';
 
         return response($xlsx, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -119,6 +115,30 @@ class ActiveLateClientsXlsxReportController extends Controller
             'Content-Length' => (string) strlen($xlsx),
             'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
         ]);
+    }
+
+    protected function reportClients()
+    {
+        $query = Client::with('payments')->orderBy('name')->get();
+
+        if (request()->query('scope') === 'all-except-done') {
+            return $query
+                ->filter(fn (Client $client) => (string) $client->status !== 'done')
+                ->values();
+        }
+
+        return $query
+            ->filter(fn (Client $client) => ! $client->has_court
+                && ! in_array((string) $client->status, ['done', 'stuck', 'cancelled'], true)
+                && $client->getRemainingAmount() > 0.01)
+            ->values();
+    }
+
+    protected function filenamePrefix(): string
+    {
+        return request()->query('scope') === 'all-except-done'
+            ? 'all-clients-except-done'
+            : 'active-late-clients';
     }
 
     private function periods($clients)
