@@ -5,10 +5,13 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { ReportDocument } from '@/types/report';
 import { buildXlsxBase64 } from '@/utils/xlsx-export';
-import { formatDate, formatDateDDMMYYYY } from '@/utils/format';
+import { formatDate } from '@/utils/format';
 
 const SESSION_STORAGE_KEY = 'finance.savedSession.v2';
-const ACTIVE_LATE_REPORT_TITLE = 'تقرير العملاء النشطين والمتأخرين';
+const SERVER_XLSX_ENDPOINTS: Record<string, string> = {
+  'تقرير العملاء النشطين والمتأخرين': '/reports/active-late-clients-xlsx',
+  'تقرير جميع العملاء باستثناء المنتهين': '/reports/active-late-clients-xlsx?scope=all-except-done',
+};
 
 function escapeHtml(value: string | number): string {
   return String(value ?? '')
@@ -68,7 +71,7 @@ function safeFilename(report: ReportDocument, extension: string): string {
   return `${base}-${stamp}.${extension}`;
 }
 
-async function downloadActiveLateXlsx(report: ReportDocument): Promise<string> {
+async function downloadServerXlsx(report: ReportDocument, endpoint: string): Promise<string> {
   const token = await readAuthToken();
 
   if (!token) {
@@ -78,7 +81,7 @@ async function downloadActiveLateXlsx(report: ReportDocument): Promise<string> {
   const target = `${FileSystem.documentDirectory}${safeFilename(report, 'xlsx')}`;
 
   const result = await FileSystem.downloadAsync(
-    `${resolveApiBase()}/reports/active-late-clients-xlsx`,
+    `${resolveApiBase()}${endpoint}`,
     target,
     {
       headers: {
@@ -121,8 +124,9 @@ export async function exportReportPdf(report: ReportDocument): Promise<string> {
 }
 
 export async function exportReportExcelCsv(report: ReportDocument): Promise<string> {
-  if (report.title === ACTIVE_LATE_REPORT_TITLE) {
-    return downloadActiveLateXlsx(report);
+  const serverEndpoint = SERVER_XLSX_ENDPOINTS[report.title];
+  if (serverEndpoint) {
+    return downloadServerXlsx(report, serverEndpoint);
   }
 
   const target = `${FileSystem.documentDirectory}${safeFilename(report, 'xlsx')}`;
