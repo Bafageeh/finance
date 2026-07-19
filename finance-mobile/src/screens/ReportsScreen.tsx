@@ -9,7 +9,6 @@ import { LoadingBlock } from '@/components/LoadingBlock';
 import { MetricCard } from '@/components/MetricCard';
 import { ReportExportCard } from '@/components/ReportExportCard';
 import { Screen } from '@/components/Screen';
-import { useSession } from '@/contexts/auth-context';
 import { getClients, getPartnerClients, getStats } from '@/services/api';
 import { getFollowUpSummaries } from '@/services/follow-up-store';
 import { exportReportExcelCsv, exportReportPdf } from '@/services/report-export';
@@ -47,20 +46,11 @@ function targetDateText(lead: CollectionAssistantLead): string {
   return value ? formatDate(value) : 'بدون تاريخ';
 }
 
-function isAliSession(session: ReturnType<typeof useSession>['session']): boolean {
-  return (
-    String(session?.user?.email || '').toLowerCase() === 'ali@pm.sa'
-    || String(session?.user?.account_slug || '').toLowerCase() === 'ali'
-  );
-}
-
 export default function ReportsScreen() {
   const isFocused = useIsFocused();
-  const { session } = useSession();
-  const isAli = isAliSession(session);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
-  const [aliSharedClients, setAliSharedClients] = useState<Client[]>([]);
+  const [aliReportClients, setAliReportClients] = useState<Client[]>([]);
   const [followUps, setFollowUps] = useState<Record<number, FollowUpSummary>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,13 +64,13 @@ export default function ReportsScreen() {
       const [statsResponse, clientsResponse, aliClientsResponse] = await Promise.all([
         getStats(),
         getClients('all'),
-        isAli ? getPartnerClients() : Promise.resolve<Client[]>([]),
+        getPartnerClients().catch(() => null),
       ]);
       const summaries = await getFollowUpSummaries(clientsResponse.map((client) => client.id));
 
       setStats(statsResponse);
       setClients(clientsResponse);
-      setAliSharedClients(aliClientsResponse);
+      setAliReportClients(aliClientsResponse ?? clientsResponse);
       setFollowUps(summaries);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر تحميل بيانات التقارير.');
@@ -94,7 +84,7 @@ export default function ReportsScreen() {
     if (isFocused) {
       void loadData();
     }
-  }, [isFocused, isAli]);
+  }, [isFocused]);
 
   const assistantBoard: CollectionAssistantBoard = useMemo(
     () => buildCollectionAssistantBoard(clients, followUps),
@@ -102,8 +92,6 @@ export default function ReportsScreen() {
   );
 
   const featuredLeads = useMemo(() => assistantBoard.leads.slice(0, 3), [assistantBoard.leads]);
-
-  const aliReportClients = useMemo(() => (isAli ? aliSharedClients : clients), [aliSharedClients, clients, isAli]);
 
   const reports = useMemo(() => {
     if (!stats) return [];
