@@ -18,22 +18,8 @@ import { AppCard } from '@/components/AppCard';
 import { InfoPill } from '@/components/InfoPill';
 import { Screen } from '@/components/Screen';
 import { useSession } from '@/contexts/auth-context';
-import { AdminAccountSummary, apiConfig, changePassword } from '@/services/api';
+import { AdminAccountSummary, apiConfig, changePassword, getAdminAccounts } from '@/services/api';
 import { colors } from '@/utils/theme';
-
-async function getAdminAccounts(): Promise<AdminAccountSummary[]> {
-  const response = await fetch(`${apiConfig.baseUrl}/admin/accounts`, {
-    headers: { Accept: 'application/json' },
-  });
-
-  if (!response.ok) {
-    throw new Error('تعذر تحميل الحسابات');
-  }
-
-  const data = await response.json();
-  return Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-}
-
 
 function maskToken(token?: string) {
   if (!token) return 'لا يوجد';
