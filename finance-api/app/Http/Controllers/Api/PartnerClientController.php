@@ -12,12 +12,17 @@ class PartnerClientController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $aliAccountId = $this->ensureAli($request);
-
         $clients = Client::withoutGlobalScope('account')
             ->with(['payments' => fn ($query) => $query->withoutGlobalScope('account')])
-            ->where('profit_share', 'shared')
-            ->when($aliAccountId, fn ($query) => $query->where('account_id', '!=', $aliAccountId))
+            ->where(function ($query) {
+                $compactNameSql = "REPLACE(REPLACE(COALESCE(name, ''), ' ', ''), 'ـ', '')";
+
+                $query->where('profit_share', 'shared')
+                    ->orWhereNull('profit_share')
+                    ->orWhere('profit_share', '')
+                    ->orWhereRaw("{$compactNameSql} LIKE ?", ['%عليالجوهري%'])
+                    ->orWhereRaw("{$compactNameSql} LIKE ?", ['%علىالجوهري%']);
+            })
             ->orderByDesc('created_at')
             ->get();
 
@@ -30,12 +35,19 @@ class PartnerClientController extends Controller
 
     public function show(Request $request, int|string $client): JsonResponse
     {
-        $aliAccountId = $this->ensureAli($request);
+        $this->ensureAli($request);
 
         $clientModel = Client::withoutGlobalScope('account')
             ->with(['payments' => fn ($query) => $query->withoutGlobalScope('account')])
-            ->where('profit_share', 'shared')
-            ->when($aliAccountId, fn ($query) => $query->where('account_id', '!=', $aliAccountId))
+            ->where(function ($query) {
+                $compactNameSql = "REPLACE(REPLACE(COALESCE(name, ''), ' ', ''), 'ـ', '')";
+
+                $query->where('profit_share', 'shared')
+                    ->orWhereNull('profit_share')
+                    ->orWhere('profit_share', '')
+                    ->orWhereRaw("{$compactNameSql} LIKE ?", ['%عليالجوهري%'])
+                    ->orWhereRaw("{$compactNameSql} LIKE ?", ['%علىالجوهري%']);
+            })
             ->whereKey($client)
             ->firstOrFail();
 
