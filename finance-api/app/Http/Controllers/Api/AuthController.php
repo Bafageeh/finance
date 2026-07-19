@@ -141,30 +141,27 @@ class AuthController extends Controller
             ->orderBy('name')
             ->get();
 
-        // بعض السجلات القديمة كانت مرتبطة بالمستخدم عبر user_id قبل اكتمال نقلها إلى account_id.
-        // نعطي user_id الأولوية عند تحديد الحساب الفعلي حتى لا تضيع هذه السجلات أو تُحسب مرتين.
-        $userAccountMap = User::query()
-            ->whereNotNull('account_id')
-            ->pluck('account_id', 'id');
+        $allClients = Client::withoutGlobalScope('account')->get();
 
-        $allClients = Client::withoutGlobalScope('account')
-            ->with([
-                'payments' => fn ($query) => $query->withoutGlobalScope('account'),
-            ])
-            ->get();
+        $data = $accounts->map(function (Account $account) use ($allClients): array {
+            $accountUserIds = $account->users
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
 
-        $data = $accounts->map(function (Account $account) use ($allClients, $userAccountMap): array {
-            $accountClients = $allClients->filter(function (Client $client) use ($account, $userAccountMap): bool {
-                $linkedUserAccountId = (int) ($userAccountMap->get((int) ($client->user_id ?? 0)) ?? 0);
-                $effectiveAccountId = $linkedUserAccountId > 0
-                    ? $linkedUserAccountId
-                    : (int) ($client->account_id ?? 0);
+            // نقرأ ملكية العميل بالطريقتين معاً:
+            // account_id هو الربط الحالي، وuser_id هو الربط الموجود في بعض البيانات القديمة.
+            // استخدام OR يمنع سقوط العملاء عند وجود أحد الرابطين فقط أو عند بقاء ربط قديم.
+            $accountClients = $allClients->filter(function (Client $client) use ($account, $accountUserIds): bool {
+                $matchesAccount = (int) ($client->account_id ?? 0) === (int) $account->id;
+                $matchesUser = in_array((int) ($client->user_id ?? 0), $accountUserIds, true);
 
-                return $effectiveAccountId === (int) $account->id;
+                return $matchesAccount || $matchesUser;
             });
 
-            // المقصود بالنشط هنا: التمويل القائم بما فيه المتأخر، مع استبعاد
-            // المتعثر والقضية والمنتهي والملغي، واشتراط وجود مبلغ متبقٍ فعلي.
+            // تعريف النشط المعتمد: النشط والمتأخر، مع استبعاد المتعثر والقضية
+            // والمنتهي والملغي. لا نعتمد هنا على حساب المتبقي حتى لا تسقط سجلات
+            // قديمة بسبب اختلاف طريقة تسجيل الدفعات.
             $activeClientsCount = $accountClients
                 ->filter(fn (Client $client) => $this->isActiveFinancingClient($client))
                 ->count();
@@ -195,15 +192,11 @@ class AuthController extends Controller
 
     private function isActiveFinancingClient(Client $client): bool
     {
-        if ($client->getRemainingAmount() <= 0.01) {
-            return false;
-        }
-
         if ((bool) ($client->has_court ?? false)) {
             return false;
         }
 
-        $status = strtolower(trim((string) ($client->status ?? '')));
+        $status = strtolower(trim((string) ($client->status ?? 'active')));
 
         return ! in_array($status, [
             'stuck',
@@ -211,6 +204,10 @@ class AuthController extends Controller
             'done',
             'cancelled',
             'canceled',
+            'متعثر',
+            'قضية',
+            'منتهي',
+            'ملغي',
         ], true);
     }
 
