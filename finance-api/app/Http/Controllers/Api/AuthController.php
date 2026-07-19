@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\Client;
 use App\Models\PersonalAccessToken;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -131,32 +132,50 @@ class AuthController extends Controller
         }
 
         $accounts = Account::query()
-            ->withCount([
-                'users',
-                'clients' => fn ($query) => $query->withoutGlobalScope('account'),
+            ->withCount('users')
+            ->with([
+                'users' => function ($query) {
+                    $query->select('id', 'account_id', 'name', 'username', 'email', 'created_at')
+                        ->orderBy('name');
+                },
+                'clients' => function ($query) {
+                    $query->withoutGlobalScope('account')
+                        ->where('status', 'active')
+                        ->with([
+                            'payments' => fn ($paymentQuery) => $paymentQuery->withoutGlobalScope('account'),
+                        ]);
+                },
             ])
-            ->with(['users' => function ($query) {
-                $query->select('id', 'account_id', 'name', 'username', 'email', 'created_at')
-                    ->orderBy('name');
-            }])
             ->when($user?->account_id, fn ($query) => $query->where('id', '!=', $user->account_id))
             ->orderBy('name')
             ->get()
-            ->map(fn (Account $account) => [
-                'id' => $account->id,
-                'name' => $account->name,
-                'slug' => $account->slug,
-                'status' => $account->status,
-                'users_count' => $account->users_count,
-                'clients_count' => $account->clients_count,
-                'users' => $account->users->map(fn (User $accountUser) => [
-                    'id' => $accountUser->id,
-                    'name' => $accountUser->name,
-                    'username' => $accountUser->username,
-                    'email' => $accountUser->email,
-                    'created_at' => $accountUser->created_at?->toDateString(),
-                ])->values(),
-            ])->values();
+            ->map(function (Account $account): array {
+                // نفس تعريف العميل النشط المستخدم في إحصائيات الحساب:
+                // الحالة active مع وجود مبلغ متبقٍ فعلي أكبر من صفر.
+                $activeClientsCount = $account->clients
+                    ->filter(fn (Client $client) =>
+                        $client->status === 'active'
+                        && $client->getRemainingAmount() > 0.01
+                    )
+                    ->count();
+
+                return [
+                    'id' => $account->id,
+                    'name' => $account->name,
+                    'slug' => $account->slug,
+                    'status' => $account->status,
+                    'users_count' => $account->users_count,
+                    'clients_count' => $activeClientsCount,
+                    'active_clients_count' => $activeClientsCount,
+                    'users' => $account->users->map(fn (User $accountUser) => [
+                        'id' => $accountUser->id,
+                        'name' => $accountUser->name,
+                        'username' => $accountUser->username,
+                        'email' => $accountUser->email,
+                        'created_at' => $accountUser->created_at?->toDateString(),
+                    ])->values(),
+                ];
+            })->values();
 
         return response()->json([
             'data' => $accounts,
