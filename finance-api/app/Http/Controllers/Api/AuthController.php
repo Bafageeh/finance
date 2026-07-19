@@ -131,7 +131,10 @@ class AuthController extends Controller
         }
 
         $accounts = Account::query()
-            ->withCount(['users', 'clients'])
+            ->withCount([
+                'users',
+                'clients' => fn ($query) => $query->withoutGlobalScope('account'),
+            ])
             ->with(['users' => function ($query) {
                 $query->select('id', 'account_id', 'name', 'username', 'email', 'created_at')
                     ->orderBy('name');
