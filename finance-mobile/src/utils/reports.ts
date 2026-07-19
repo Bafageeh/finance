@@ -26,9 +26,21 @@ function rowsByRemaining(clients: Client[]): Client[] {
   return [...clients].sort((a, b) => b.summary.remaining_amount - a.summary.remaining_amount);
 }
 
+function normalizeArabicName(value: string | null | undefined): string {
+  return String(value || '')
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[إأآ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/\s+/g, '')
+    .toLowerCase();
+}
+
 function hasAliProfitShare(client: Client): boolean {
+  const hasAliAlJohariInName = normalizeArabicName(client.name).includes('عليالجوهري');
+
   return (
-    client.profit_share === 'shared'
+    hasAliAlJohariInName
+    || client.profit_share === 'shared'
     || client.summary?.profit_share === 'shared'
     || Number(client.summary?.ali_pct || 0) > 0
     || Number(client.summary?.ali_total || 0) > 0
@@ -207,7 +219,7 @@ export function buildLateClientsWithAliReport(clients: Client[]): ReportDocument
   return {
     kind: 'late_with_ali',
     title: 'تقرير المتأخرين مع علي',
-    subtitle: 'التمويلات المتأخرة التي يشارك بها علي في الأرباح فقط.',
+    subtitle: 'جميع التمويلات المتأخرة المرتبطة بعلي لدى كل المستخدمين، إضافة إلى أي تمويل يتضمن اسم علي الجوهري.',
     filename: 'late-clients-with-ali-report',
     generatedAt: nowStamp(),
     summary: [
