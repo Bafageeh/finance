@@ -28,7 +28,7 @@ jobs:
       DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}
 
     steps:
-      - name: Deploy both Finance instances over SSH
+      - name: Deploy Finance over SSH
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -59,12 +59,7 @@ jobs:
           PRIMARY_APP="$BASE_DIR/finance"
 
           default_api_url() {
-            local label="$1"
-            if [ "$label" = "finance-sara" ]; then
-              echo "https://sara.pm.sa/api/v1"
-            else
-              echo "https://finance.pm.sa/api/v1"
-            fi
+            echo "https://finance.pm.sa/api/v1"
           }
 
           write_public_htaccess() {
@@ -97,15 +92,15 @@ jobs:
           build_web_frontend() {
             local app_dir="$1"
             local label="$2"
-            local mobile_dir="$app_dir/finance-mobile-starter"
+            local mobile_dir="$app_dir/finance-mobile"
             local public_dir="$app_dir/finance-api/public"
             local api_url
-            api_url="$(default_api_url "$label")"
+            api_url="$(default_api_url)"
 
-            echo "=== Building web frontend for $label ==="
+            echo "=== Building web frontend for $label from finance-mobile ==="
 
             if [ ! -d "$mobile_dir" ]; then
-              echo "Missing mobile frontend directory: $mobile_dir"
+              echo "Missing current mobile frontend directory: $mobile_dir"
               exit 1
             fi
 
@@ -116,7 +111,7 @@ jobs:
 
             su -s /bin/bash pmsa -c "
               cd '$mobile_dir'
-              npm install
+              npm install --legacy-peer-deps --no-audit --no-fund
               rm -rf dist
               CI=1 npx expo export --platform web --output-dir dist
             "
@@ -147,8 +142,8 @@ jobs:
               cp "$app_dir/finance-api/.env" "/tmp/${label}-finance-api.env"
             fi
 
-            if [ -f "$app_dir/finance-mobile-starter/.env" ]; then
-              cp "$app_dir/finance-mobile-starter/.env" "/tmp/${label}-finance-mobile.env"
+            if [ -f "$app_dir/finance-mobile/.env" ]; then
+              cp "$app_dir/finance-mobile/.env" "/tmp/${label}-finance-mobile.env"
             fi
 
             chown -R pmsa:pmsa "$app_dir"
@@ -177,7 +172,7 @@ jobs:
             fi
 
             if [ -f "/tmp/${label}-finance-mobile.env" ]; then
-              cp "/tmp/${label}-finance-mobile.env" "$app_dir/finance-mobile-starter/.env"
+              cp "/tmp/${label}-finance-mobile.env" "$app_dir/finance-mobile/.env"
             fi
 
             su -s /bin/bash pmsa -c "
@@ -186,7 +181,12 @@ jobs:
               php artisan migrate --force
               php artisan optimize:clear
               php artisan config:cache
+              git -C '$app_dir' rev-parse HEAD > public/deploy-version.txt
             "
+
+            # اجعل تغييرات الـ API فعالة فوراً، حتى لو تعطل بناء الواجهة بعد ذلك.
+            /usr/local/cpanel/scripts/restartsrv_apache_php_fpm || true
+            /usr/local/cpanel/scripts/restartsrv_httpd || true
 
             build_web_frontend "$app_dir" "$label"
 
@@ -200,6 +200,5 @@ jobs:
           /usr/local/cpanel/scripts/restartsrv_httpd || true
 
           echo "=== Finance deployment completed successfully ==="
-          echo "Original web app: https://finance.pm.sa"
-          echo "Sara web app: https://sara.pm.sa"
+          echo "Web app: https://finance.pm.sa"
           REMOTE
