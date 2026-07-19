@@ -18,6 +18,9 @@ concurrency:
   group: finance-apk-build
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   build-apk:
     name: Build standalone APK without EAS
@@ -114,4 +117,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-# Standalone finance-mobile APK trigger: 2026-07-19T21:04:25+03:00
+      - name: Publish APK in GitHub Releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="finance-apk-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" "apk-output/finance-release.apk#finance-release.apk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Finance APK ${GITHUB_RUN_NUMBER}" \
+            --notes "نسخة تطبيق التمويل مبنية عبر GitHub Actions بدون استخدام رصيد EAS."
+
+# Standalone finance-mobile APK trigger: 2026-07-19T21:55:00+03:00
