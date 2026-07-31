@@ -1,4 +1,5 @@
 name: Build Finance APK
+# Build trigger: 2026-07-31 release after client card refinements
 
 on:
   workflow_dispatch:
