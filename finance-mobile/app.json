@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "Finance Mobile",
+    "name": "إدارة التمويل",
     "slug": "finance-mobile",
     "scheme": "finance-mobile",
-    "version": "1.0.4",
+    "version": "1.0.6",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "android": {
@@ -15,7 +15,8 @@
       }
     },
     "ios": {
-      "bundleIdentifier": "com.example.financemobile",
+      "bundleIdentifier": "sa.pm.finance",
+      "buildNumber": "13",
       "infoPlist": {
         "NSFaceIDUsageDescription": "يستخدم تطبيق التمويل بصمة الوجه لتسجيل الدخول السريع بعد أول دخول بكلمة المرور."
       }
