@@ -1,0 +1,42 @@
+name: Build and submit Finance iOS to TestFlight
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: finance-ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  build-and-submit-ios:
+    name: Build iOS production and submit to TestFlight
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: finance-mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: finance-mobile/package-lock.json
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build production iOS and submit to TestFlight
+        env:
+          EXPO_PUBLIC_API_BASE_URL: https://finance.pm.sa/api/v1
+          EXPO_PUBLIC_USE_MOCKS: 'false'
+        run: eas build --platform ios --profile production --auto-submit --non-interactive --wait

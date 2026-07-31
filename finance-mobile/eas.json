@@ -1,0 +1,21 @@
+{
+  "cli": {
+    "version": ">= 18.8.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://finance.pm.sa/api/v1",
+        "EXPO_PUBLIC_USE_MOCKS": "false"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
