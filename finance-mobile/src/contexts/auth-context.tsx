@@ -110,6 +110,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setApiToken(null);
         setSession(null);
       await clearManualLogoutForBiometrics();
+      } catch {
+        if (!mounted) return;
+        setHasSavedSession(false);
+        setBiometricAvailable(false);
+        setBiometricLabel("البصمة");
+        setApiToken(null);
+        setSession(null);
       } finally {
         if (mounted) setIsLoading(false);
       }
