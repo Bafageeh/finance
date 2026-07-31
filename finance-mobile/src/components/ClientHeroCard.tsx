@@ -11,6 +11,10 @@ interface ClientHeroCardProps {
   progressColor: string;
   overdueCount: number;
   overdueAmount: number;
+  remainingFinancedCapital: number;
+  ahmadProfitRate: number;
+  ownerProfitLabel: string;
+  partnerProfitLabel: string;
   onToggleClient: () => void;
   onToggleCourt: () => void;
   disabled?: boolean;
@@ -22,6 +26,10 @@ export function ClientHeroCard({
   progressColor,
   overdueCount,
   overdueAmount,
+  remainingFinancedCapital,
+  ahmadProfitRate,
+  ownerProfitLabel,
+  partnerProfitLabel,
   onToggleClient,
   onToggleCourt,
   disabled,
@@ -107,6 +115,14 @@ export function ClientHeroCard({
         <MiniStat label="الربح" value={formatCurrency(client.summary.total_profit)} tone="info" />
       </View>
 
+      <View style={styles.financialMetricsGrid}>
+        <FinancialMetric label="قيمة السند" value={formatCurrency(client.summary.bond_total)} />
+        <FinancialMetric label="رأس المال المتبقي" value={formatCurrency(remainingFinancedCapital)} tone="warning" />
+        <FinancialMetric label={ownerProfitLabel} value={formatCurrency(client.summary.ahmad_total)} tone="success" />
+        <FinancialMetric label={partnerProfitLabel} value={formatCurrency(client.summary.ali_total)} tone="info" />
+        <FinancialMetric label="نسبة ربح أحمد" value={`${ahmadProfitRate.toFixed(2)}%`} tone="success" wide />
+      </View>
+
       {heroNotices.length ? (
         <View style={styles.noticeWrap}>
           {heroNotices.map((notice, index) => (
@@ -188,6 +204,36 @@ function MiniStat({
         {value}
       </Text>
       <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function FinancialMetric({
+  label,
+  value,
+  tone = 'default',
+  wide = false,
+}: {
+  label: string;
+  value: string;
+  tone?: 'default' | 'success' | 'info' | 'warning';
+  wide?: boolean;
+}) {
+  const palette =
+    tone === 'success'
+      ? { background: colors.successSoft, value: colors.success }
+      : tone === 'info'
+        ? { background: colors.infoSoft, value: colors.info }
+        : tone === 'warning'
+          ? { background: colors.warningSoft, value: colors.warning }
+          : { background: colors.surfaceMuted, value: colors.text };
+
+  return (
+    <View style={[styles.financialMetricCard, wide && styles.financialMetricCardWide, { backgroundColor: palette.background }]}>
+      <Text style={[styles.financialMetricValue, { color: palette.value }]} numberOfLines={1}>
+        {value}
+      </Text>
+      <Text style={styles.financialMetricLabel}>{label}</Text>
     </View>
   );
 }
@@ -290,6 +336,32 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row-reverse',
     gap: 8,
+  },
+  financialMetricsGrid: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  financialMetricCard: {
+    width: '48.5%',
+    flexGrow: 1,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 11,
+    gap: 4,
+  },
+  financialMetricCardWide: {
+    width: '100%',
+  },
+  financialMetricValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'right',
+  },
+  financialMetricLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    textAlign: 'right',
   },
   statCard: {
     flex: 1,
