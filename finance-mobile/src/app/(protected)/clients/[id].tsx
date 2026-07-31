@@ -99,7 +99,7 @@ export default function ClientDetailsScreen() {
   const firstUpcomingKey = upcomingItems[0]?.period_key;
   const progressColor = client?.has_court ? colors.court : status === 'stuck' ? colors.neutral : status === 'done' ? colors.info : overdueItems.length ? colors.danger : colors.success;
   const financedCapital = client
-    ? (Number(client.cost) || 0) + (Number(client.bond_cost) || 74.75) + (Number(client.summary.ali_total) || 0)
+    ? (Number(client.cost) || 0) + (Number(client.bond_cost ?? 74.75) || 0) + (Number(client.summary.ali_total) || 0)
     : 0;
   const remainingFinancedCapital = client
     ? Math.max(0, financedCapital - (Number(client.summary.paid_amount) || 0))
