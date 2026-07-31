@@ -100,8 +100,9 @@ export default function ClientDetailsScreen() {
   const progressColor = client?.has_court ? colors.court : status === 'stuck' ? colors.neutral : status === 'done' ? colors.info : overdueItems.length ? colors.danger : colors.success;
   const remainingFinancedCapital = client ? Math.max(0, (Number(client.summary.financed_amount) || 0) - (Number(client.summary.paid_amount) || 0)) : 0;
   const ahmadProfitCapital = client ? (Number(client.principal) || Number(client.cost) || 0) : 0;
-  const ahmadProfitRate = client && ahmadProfitCapital > 0
-    ? ((Number(client.summary.ahmad_total) || 0) / ahmadProfitCapital) * 100
+  const financingMonths = client ? Number(client.months) || 0 : 0;
+  const ahmadProfitRate = client && ahmadProfitCapital > 0 && financingMonths > 0
+    ? ((Number(client.summary.ahmad_total) || 0) / ahmadProfitCapital) * 100 * (12 / financingMonths)
     : 0;
 
   function toggleSection(section: ExpandedSection) {
