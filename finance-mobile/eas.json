@@ -1,11 +1,11 @@
 {
   "cli": {
     "version": ">= 18.8.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "production": {
-      "autoIncrement": true,
+      "autoIncrement": false,
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://finance.pm.sa/api/v1",
         "EXPO_PUBLIC_USE_MOCKS": "false"
@@ -16,6 +16,10 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6785019556"
+      }
+    }
   }
 }
