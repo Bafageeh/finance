@@ -11,7 +11,6 @@ import { InstallmentDetailsSheet } from '@/components/InstallmentDetailsSheet';
 import { KeyValueRow } from '@/components/KeyValueRow';
 import { PaymentSheet } from '@/components/PaymentSheet';
 import { LoadingBlock } from '@/components/LoadingBlock';
-import { MetricCard } from '@/components/MetricCard';
 import { ClientHeroCard } from '@/components/ClientHeroCard';
 import { Screen } from '@/components/Screen';
 import { useSession } from '@/contexts/auth-context';
@@ -100,6 +99,10 @@ export default function ClientDetailsScreen() {
   const firstUpcomingKey = upcomingItems[0]?.period_key;
   const progressColor = client?.has_court ? colors.court : status === 'stuck' ? colors.neutral : status === 'done' ? colors.info : overdueItems.length ? colors.danger : colors.success;
   const remainingFinancedCapital = client ? Math.max(0, (Number(client.summary.financed_amount) || 0) - (Number(client.summary.paid_amount) || 0)) : 0;
+  const ahmadProfitCapital = client ? (Number(client.principal) || Number(client.cost) || 0) : 0;
+  const ahmadProfitRate = client && ahmadProfitCapital > 0
+    ? ((Number(client.summary.ahmad_total) || 0) / ahmadProfitCapital) * 100
+    : 0;
 
   function toggleSection(section: ExpandedSection) {
     setExpandedSections((current) => ({ ...current, [section]: !current[section] }));
@@ -186,16 +189,20 @@ export default function ClientDetailsScreen() {
         {loading ? <LoadingBlock /> : null}
         {!loading && error ? <AppCard title="تعذر التحميل"><Text style={styles.errorText}>{error}</Text></AppCard> : null}
         {!loading && !error && client ? <>
-          <ClientHeroCard client={client} status={status} progressColor={progressColor} overdueCount={alertInfo?.overdueCount || 0} overdueAmount={alertInfo?.overdueAmount || 0} onToggleClient={() => void toggleClientStatus()} onToggleCourt={() => void toggleCourtStatus()} disabled={updatingFlags} />
-
-          <AppCard title="مؤشرات مالية مختصرة">
-            <View style={styles.metricGrid}>
-              <MetricCard label="قيمة السند" value={formatCurrency(client.summary.bond_total)} />
-              <MetricCard label="رأس المال المتبقي" value={formatCurrency(remainingFinancedCapital)} tone="warning" />
-              <MetricCard label={ownerProfitLabel(currentUser)} value={formatCurrency(client.summary.ahmad_total)} tone="success" />
-              <MetricCard label={partnerProfitLabel(currentUser)} value={formatCurrency(client.summary.ali_total)} tone="info" />
-            </View>
-          </AppCard>
+          <ClientHeroCard
+            client={client}
+            status={status}
+            progressColor={progressColor}
+            overdueCount={alertInfo?.overdueCount || 0}
+            overdueAmount={alertInfo?.overdueAmount || 0}
+            remainingFinancedCapital={remainingFinancedCapital}
+            ahmadProfitRate={ahmadProfitRate}
+            ownerProfitLabel={ownerProfitLabel(currentUser)}
+            partnerProfitLabel={partnerProfitLabel(currentUser)}
+            onToggleClient={() => void toggleClientStatus()}
+            onToggleCourt={() => void toggleCourtStatus()}
+            disabled={updatingFlags}
+          />
 
           <AccordionSection title="توزيع الأرباح" subtitle={`النوع: ${profitShareLabelForUser(client.profit_share, currentUser)}`} expanded={expandedSections.profit} onToggle={() => toggleSection('profit')}>
             <KeyValueRow label="نوع التوزيع" value={profitShareLabelForUser(client.profit_share, currentUser)} />
@@ -233,7 +240,6 @@ export default function ClientDetailsScreen() {
 const styles = StyleSheet.create({
   content: { paddingBottom: 40 },
   headerActions: { flexDirection: 'row-reverse', gap: 8, flexWrap: 'wrap' },
-  metricGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10 },
   installmentsCard: { gap: 8 },
   errorText: { color: colors.danger, textAlign: 'right', lineHeight: 24 },
 });
