@@ -128,4 +128,4 @@ jobs:
             --title "Finance APK ${GITHUB_RUN_NUMBER}" \
             --notes "نسخة تطبيق التمويل مبنية عبر GitHub Actions بدون استخدام رصيد EAS."
 
-# Standalone finance-mobile APK trigger: 2026-07-19T21:55:00+03:00
+# Standalone finance-mobile APK trigger: 2026-07-31T05:30:00+03:00
