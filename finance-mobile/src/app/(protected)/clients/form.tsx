@@ -458,24 +458,22 @@ export default function ClientFormScreen() {
             </View>
 
             <LabeledInput label="الأصل / السلعة" value={asset} onChangeText={setAsset} placeholder="مثال: كامري 2024" />
-            <LabeledDateInput
-
-              label="تاريخ العقد"
-
-              value={contractDate}
-
-              onChange={handleContractDateChange}
-
-            />
-<LabeledDateInput
-
-  label="تاريخ أول قسط"
-
-  value={firstInstallmentDate}
-
-  onChange={handleFirstInstallmentDateChange}
-
-/>
+            <View style={styles.twoCols}>
+              <View style={styles.col}>
+                <LabeledDateInput
+                  label="تاريخ العقد"
+                  value={contractDate}
+                  onChange={handleContractDateChange}
+                />
+              </View>
+              <View style={styles.col}>
+                <LabeledDateInput
+                  label="تاريخ أول قسط"
+                  value={firstInstallmentDate}
+                  onChange={handleFirstInstallmentDateChange}
+                />
+              </View>
+            </View>
             <LabeledInput label="ملاحظات العميل" value={notes} onChangeText={setNotes} multiline style={styles.multiline} placeholder="اكتب أي ملاحظة عامة عن العميل" />
           </AccordionSection>
 
@@ -549,6 +547,13 @@ export default function ClientFormScreen() {
                 />
               </View>
               <View style={styles.col}>
+                <LabeledInput
+                  label="قيمة السند الكاملة (اختياري)"
+                  value={bondTotal}
+                  onChangeText={setBondTotal}
+                  keyboardType="decimal-pad"
+                  hint="اتركه فارغًا ليتم حسابه تلقائيًا من النسبة."
+                />
               </View>
             </View>
 
@@ -560,14 +565,6 @@ export default function ClientFormScreen() {
                 <LabeledInput label="عدد الأشهر" value={months} onChangeText={setMonths} keyboardType="number-pad" />
               </View>
             </View>
-
-            <LabeledInput
-              label="قيمة السند الكاملة (اختياري)"
-              value={bondTotal}
-              onChangeText={setBondTotal}
-              keyboardType="decimal-pad"
-              hint="اتركه فارغًا ليتم حسابه تلقائيًا من النسبة."
-            />
           </AccordionSection>
 
           <AccordionSection
