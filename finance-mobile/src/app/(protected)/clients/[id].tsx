@@ -199,7 +199,6 @@ export default function ClientDetailsScreen() {
             remainingFinancedCapital={remainingFinancedCapital}
             ahmadProfitRate={ahmadProfitRate}
             ownerProfitLabel={ownerProfitLabel(currentUser)}
-            partnerProfitLabel={partnerProfitLabel(currentUser)}
             onToggleClient={() => void toggleClientStatus()}
             onToggleCourt={() => void toggleCourtStatus()}
             disabled={updatingFlags}
