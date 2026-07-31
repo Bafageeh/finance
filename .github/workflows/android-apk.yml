@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - 'finance-mobile-starter/**'
+      - 'finance-mobile/**'
       - '.github/workflows/android-apk.yml'
 
 permissions:
@@ -24,7 +24,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: finance-mobile-starter
+        working-directory: finance-mobile
 
     steps:
       - name: Checkout repository
