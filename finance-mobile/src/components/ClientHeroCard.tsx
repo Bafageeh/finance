@@ -14,7 +14,6 @@ interface ClientHeroCardProps {
   remainingFinancedCapital: number;
   ahmadProfitRate: number;
   ownerProfitLabel: string;
-  partnerProfitLabel: string;
   onToggleClient: () => void;
   onToggleCourt: () => void;
   disabled?: boolean;
@@ -29,7 +28,6 @@ export function ClientHeroCard({
   remainingFinancedCapital,
   ahmadProfitRate,
   ownerProfitLabel,
-  partnerProfitLabel,
   onToggleClient,
   onToggleCourt,
   disabled,
@@ -112,15 +110,14 @@ export function ClientHeroCard({
       <View style={styles.statsRow}>
         <MiniStat label="المدفوع" value={formatCurrency(client.summary.paid_amount)} tone="success" />
         <MiniStat label="المتبقي" value={formatCurrency(client.summary.remaining_amount)} tone={overdueCount > 0 ? 'danger' : 'default'} />
-        <MiniStat label="الربح" value={formatCurrency(client.summary.total_profit)} tone="info" />
       </View>
 
       <View style={styles.financialMetricsGrid}>
         <FinancialMetric label="قيمة السند" value={formatCurrency(client.summary.bond_total)} />
         <FinancialMetric label="رأس المال المتبقي" value={formatCurrency(remainingFinancedCapital)} tone="warning" />
+        <FinancialMetric label="إجمالي الربح" value={formatCurrency(client.summary.total_profit)} tone="info" />
         <FinancialMetric label={ownerProfitLabel} value={formatCurrency(client.summary.ahmad_total)} tone="success" />
-        <FinancialMetric label={partnerProfitLabel} value={formatCurrency(client.summary.ali_total)} tone="info" />
-        <FinancialMetric label="نسبة ربح أحمد" value={`${ahmadProfitRate.toFixed(2)}%`} tone="success" wide />
+        <FinancialMetric label="نسبة ربح أحمد السنوية" value={`${ahmadProfitRate.toFixed(2)}%`} tone="success" wide />
       </View>
 
       {heroNotices.length ? (
