@@ -1,6 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from 'expo-router';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AppCard } from '@/components/AppCard';
 import { EmptyState } from '@/components/EmptyState';
@@ -21,6 +22,34 @@ import {
 } from '@/utils/stats';
 import { formatCurrency, formatInteger, formatPercent } from '@/utils/format';
 import { colors } from '@/utils/theme';
+
+interface CollapsibleCardProps extends PropsWithChildren {
+  title: string;
+}
+
+function CollapsibleCard({ title, children }: CollapsibleCardProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <AppCard>
+      <TouchableOpacity
+        style={styles.cardHeader}
+        onPress={() => setExpanded((current) => !current)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`${expanded ? 'إغلاق' : 'فتح'} ${title}`}
+      >
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={20}
+          color={colors.textMuted}
+        />
+      </TouchableOpacity>
+      {expanded ? <View style={styles.cardContent}>{children}</View> : null}
+    </AppCard>
+  );
+}
 
 export default function StatsDetailsScreen() {
   const isFocused = useIsFocused();
@@ -88,32 +117,32 @@ export default function StatsDetailsScreen() {
 
         {!loading && !error && stats && overview ? (
           <>
-            <AppCard title="صورة المحفظة">
+            <CollapsibleCard title="صورة المحفظة">
               <InsightStatCard title="إجمالي قيمة العقود" value={formatCurrency(overview.totalPortfolio)} helper="المبلغ الكلي لكافة العقود بما فيها المنتهية." tone="info" />
               <InsightStatCard title="إجمالي المتبقي للتحصيل" value={formatCurrency(overview.totalRemaining)} helper="الرصيد الحالي الذي ما زال بانتظار التحصيل." tone="danger" />
               <InsightStatCard title="ما تم تحصيله حتى الآن" value={formatCurrency(overview.totalPaid)} helper="إجمالي الدفعات المسجلة في العقود جميعها." tone="success" />
               <InsightStatCard title="التغطية من المحفظة" value={formatPercent(overview.collectionCoveragePercent)} helper="نسبة ما تم تحصيله مقارنة بإجمالي قيمة العقود." tone="warning" />
-            </AppCard>
+            </CollapsibleCard>
 
-            <AppCard title="تشغيل يومي">
+            <CollapsibleCard title="تشغيل يومي">
               <View style={styles.grid}>
                 <InsightStatCard title="عقود متأخرة" value={formatInteger(overview.overdueContracts)} helper={formatCurrency(overview.overdueAmount)} tone="danger" onPress={() => router.push('/alerts/late')} />
                 <InsightStatCard title="استحقاقات خلال 7 أيام" value={formatInteger(overview.upcomingContracts)} helper={formatCurrency(overview.upcomingAmount)} tone="warning" onPress={() => router.push('/alerts/warn')} />
                 <InsightStatCard title="قضايا المحكمة" value={formatInteger(overview.courtContracts)} helper="فتح مركز القضايا" tone="court" onPress={() => router.push('/cases')} />
                 <InsightStatCard title="متوسط القسط النشط" value={formatCurrency(overview.averageMonthlyInstallment)} helper="متوسط الدفعة الشهرية للعقود النشطة." tone="info" onPress={() => router.push('/collections')} />
               </View>
-            </AppCard>
+            </CollapsibleCard>
 
-            <AppCard title="توزيع الحالات">
+            <CollapsibleCard title="توزيع الحالات">
               <View style={styles.grid}>
                 <InsightStatCard title="نشطون" value={formatInteger(overview.activeContracts)} tone="success" />
                 <InsightStatCard title="منتهون" value={formatInteger(overview.completedContracts)} tone="info" />
                 <InsightStatCard title="متعثرون" value={formatInteger(overview.stuckContracts)} helper="تحتاج متابعة قبل أو بعد التحويل القضائي." tone="danger" onPress={() => router.push('/alerts/stuck')} />
                 <InsightStatCard title="إجمالي الأرباح" value={formatCurrency(overview.totalProfit)} helper="الربح الكلي المحسوب من جميع العقود." tone="warning" />
               </View>
-            </AppCard>
+            </CollapsibleCard>
 
-            <AppCard title="العقود الأعلى بقاءً">
+            <CollapsibleCard title="العقود الأعلى بقاءً">
               <SectionHeader title="أعلى المتبقي" subtitle="ابدأ بهذه العقود إذا أردت تقليل المخاطر المالية أولاً." />
               {highestRemaining.length ? highestRemaining.map((row) => (
                 <TouchableOpacity key={`remaining-${row.client.id}`} style={styles.rankRow} onPress={() => openClient(row)}>
@@ -124,9 +153,9 @@ export default function StatsDetailsScreen() {
                   <Text style={styles.rankValue}>{formatCurrency(row.value)}</Text>
                 </TouchableOpacity>
               )) : <EmptyState title="لا توجد بيانات" description="لا يوجد ما يمكن ترتيبه في هذا القسم حالياً." />}
-            </AppCard>
+            </CollapsibleCard>
 
-            <AppCard title="العقود الأعلى قسطاً">
+            <CollapsibleCard title="العقود الأعلى قسطاً">
               <SectionHeader title="أعلى القسط الشهري" subtitle="مفيد لتحديد أهم العقود تأثيراً على التدفق النقدي الشهري." />
               {highestMonthly.length ? highestMonthly.map((row) => (
                 <TouchableOpacity key={`monthly-${row.client.id}`} style={styles.rankRow} onPress={() => openClient(row)}>
@@ -137,9 +166,9 @@ export default function StatsDetailsScreen() {
                   <Text style={styles.rankValue}>{formatCurrency(row.value)}</Text>
                 </TouchableOpacity>
               )) : <EmptyState title="لا توجد بيانات" description="لا يوجد ما يمكن ترتيبه في هذا القسم حالياً." />}
-            </AppCard>
+            </CollapsibleCard>
 
-            <AppCard title="العقود الأقرب للإغلاق">
+            <CollapsibleCard title="العقود الأقرب للإغلاق">
               <SectionHeader title="إقفال سريع" subtitle="عقود قريبة من الانتهاء ويمكن متابعتها للوصول إلى إغلاق أسرع." />
               {closestToFinish.length ? closestToFinish.map((row) => (
                 <TouchableOpacity key={`close-${row.client.id}`} style={styles.rankRow} onPress={() => openClient(row)}>
@@ -150,9 +179,9 @@ export default function StatsDetailsScreen() {
                   <Text style={styles.rankValue}>{formatCurrency(row.value)}</Text>
                 </TouchableOpacity>
               )) : <EmptyState title="لا توجد بيانات" description="لا يوجد عقود قريبة من الإقفال حالياً." />}
-            </AppCard>
+            </CollapsibleCard>
 
-            <AppCard title="القضايا ذات القيمة الأعلى">
+            <CollapsibleCard title="القضايا ذات القيمة الأعلى">
               <SectionHeader title="الأعلى قضائياً" subtitle="أكبر القضايا من حيث المتبقي بالعقد لبدء المتابعة القانونية من الأعلى أثراً." actionLabel="فتح مركز القضايا" onActionPress={() => router.push('/cases')} />
               {courtRows.length ? courtRows.slice(0, 5).map((row) => (
                 <TouchableOpacity key={`court-${row.client.id}`} style={styles.rankRow} onPress={() => openClient(row)}>
@@ -163,7 +192,7 @@ export default function StatsDetailsScreen() {
                   <Text style={styles.rankValue}>{formatCurrency(row.value)}</Text>
                 </TouchableOpacity>
               )) : <EmptyState title="لا توجد قضايا حالياً" description="عند تفعيل قضية على أي عميل ستظهر هنا تلقائياً." />}
-            </AppCard>
+            </CollapsibleCard>
           </>
         ) : null}
       </ScrollView>
@@ -182,6 +211,22 @@ const styles = StyleSheet.create({
   },
   grid: {
     gap: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 28,
+  },
+  cardTitle: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  cardContent: {
+    gap: 12,
   },
   rankRow: {
     flexDirection: 'row',
