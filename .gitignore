@@ -10,6 +10,13 @@ finance-api/storage/framework/views/*
 finance-api/bootstrap/cache/*.php
 
 # Mobile / Expo / React Native
+finance-mobile/node_modules
+finance-mobile/.expo
+finance-mobile/dist
+finance-mobile/build
+finance-mobile/.env
+finance-mobile/.env.*
+!finance-mobile/.env.example
 finance-mobile-starter/node_modules
 finance-mobile-starter/.expo
 finance-mobile-starter/dist

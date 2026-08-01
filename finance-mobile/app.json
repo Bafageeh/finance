@@ -30,7 +30,10 @@
         {
           "faceIDPermission": "يستخدم تطبيق التمويل بصمة الوجه لتسجيل الدخول السريع بعد أول دخول بكلمة المرور."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true
