@@ -30,6 +30,11 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
   const paymentDateLabel = firstOverdueItem ? 'أول دفعة متأخرة' : 'الدفعة القادمة';
   const paymentDisplayDate = paymentDisplayItem?.due_date ? formatDate(paymentDisplayItem.due_date) : 'لا يوجد';
   const remainingPrincipal = Number(client.summary.remaining_principal ?? 0) || 0;
+  const ahmadProfitCapital = Number(client.principal) || Number(client.cost) || 0;
+  const financingMonths = Number(client.months) || 0;
+  const ahmadProfitRate = ahmadProfitCapital > 0 && financingMonths > 0
+    ? ((Number(client.summary.ahmad_total) || 0) / ahmadProfitCapital) * 100 * (12 / financingMonths)
+    : 0;
   const isLate = overdueItems.length > 0;
   const progressColor = client.has_court
     ? colors.court
@@ -96,7 +101,7 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
           </View>
 
           <Text style={styles.meta} numberOfLines={1}>
-            {client.asset || 'تمويل'} · {client.summary.paid_count}/{client.months} شهر · متبقي: {formatCurrency(client.summary.remaining_amount)}
+            {client.asset || 'تمويل'} · {client.summary.paid_count}/{client.months} شهر
           </Text>
 
           {!isDoneClient ? (
@@ -108,6 +113,19 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
               <View style={styles.detailPill}>
                 <Text style={styles.detailLabel}>رأس المال المتبقي</Text>
                 <Text style={styles.detailValue} numberOfLines={1}>{formatCurrency(remainingPrincipal)}</Text>
+              </View>
+            </View>
+          ) : null}
+
+          {!isDoneClient ? (
+            <View style={styles.detailRow}>
+              <View style={styles.detailPill}>
+                <Text style={styles.detailLabel}>المتبقي</Text>
+                <Text style={styles.detailValue} numberOfLines={1}>{formatCurrency(client.summary.remaining_amount)}</Text>
+              </View>
+              <View style={[styles.detailPill, styles.profitRatePill]}>
+                <Text style={[styles.detailLabel, styles.profitRateLabel]}>نسبة ربح أحمد</Text>
+                <Text style={[styles.detailValue, styles.profitRateValue]} numberOfLines={1}>{ahmadProfitRate.toFixed(2)}%</Text>
               </View>
             </View>
           ) : null}
@@ -303,6 +321,16 @@ const styles = StyleSheet.create({
   detailPillLate: {
     backgroundColor: colors.dangerSoft,
     borderColor: '#f0c7c7',
+  },
+  profitRatePill: {
+    backgroundColor: colors.successSoft,
+    borderColor: '#cfe5d8',
+  },
+  profitRateLabel: {
+    color: '#1b6c4f',
+  },
+  profitRateValue: {
+    color: '#1b6c4f',
   },
   detailLabel: {
     color: colors.textMuted,
