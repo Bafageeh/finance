@@ -30,7 +30,11 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
   const paymentDateLabel = firstOverdueItem ? 'أول دفعة متأخرة' : 'الدفعة القادمة';
   const paymentDisplayDate = paymentDisplayItem?.due_date ? formatDate(paymentDisplayItem.due_date) : 'لا يوجد';
   const remainingPrincipal = Number(client.summary.remaining_principal ?? 0) || 0;
-  const ahmadProfitCapital = Number(client.principal) || Number(client.cost) || 0;
+  // Keep this calculation identical to the client details screen.
+  const ahmadProfitCapital =
+    (Number(client.cost) || 0) +
+    (Number(client.bond_cost ?? 74.75) || 0) +
+    (Number(client.summary.ali_total) || 0);
   const financingMonths = Number(client.months) || 0;
   const ahmadProfitRate = ahmadProfitCapital > 0 && financingMonths > 0
     ? ((Number(client.summary.ahmad_total) || 0) / ahmadProfitCapital) * 100 * (12 / financingMonths)
@@ -100,10 +104,6 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
             </View>
           </View>
 
-          <Text style={styles.meta} numberOfLines={1}>
-            {client.asset || 'تمويل'} · {client.summary.paid_count}/{client.months} شهر
-          </Text>
-
           <View style={styles.footerRow}>
             <View style={styles.statusGroup}>
               <Text style={styles.progressPercent}>{client.summary.progress_percent}%</Text>
@@ -147,6 +147,10 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
               ) : null}
             </View>
           </View>
+
+          <Text style={styles.meta} numberOfLines={1}>
+            {client.asset || 'تمويل'} · {client.summary.paid_count}/{client.months} شهر
+          </Text>
         </View>
       </View>
 
