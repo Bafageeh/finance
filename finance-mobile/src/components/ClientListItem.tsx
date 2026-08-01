@@ -94,10 +94,40 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
                 {client.has_court ? <Ionicons name="shield-outline" size={14} color={colors.court} /> : null}
               </View>
 
-              <View style={styles.subRow}>
+              <View style={styles.badgesRow}>
+                <Text style={styles.meta} numberOfLines={1}>
+                  {client.asset || 'تمويل'} · {client.summary.paid_count}/{client.months} شهر
+                </Text>
                 <View style={[styles.cadencePill, isLate ? styles.cadenceLate : styles.cadenceRegular]}>
                   <Text style={[styles.cadenceText, isLate ? styles.cadenceLateText : styles.cadenceRegularText]}>
                     {cadenceLabel}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusPill,
+                    client.has_court
+                      ? styles.statusCourt
+                      : status === 'done'
+                        ? styles.statusDone
+                        : isLate || status === 'stuck'
+                          ? styles.statusLate
+                          : styles.statusActive,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.statusText,
+                      client.has_court
+                        ? styles.statusCourtText
+                        : status === 'done'
+                          ? styles.statusDoneText
+                          : isLate || status === 'stuck'
+                            ? styles.statusLateText
+                            : styles.statusActiveText,
+                    ]}
+                  >
+                    {statusLabel}
                   </Text>
                 </View>
               </View>
@@ -105,37 +135,6 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
           </View>
 
           <View style={styles.footerRow}>
-            <View style={styles.statusGroup}>
-              <Text style={styles.progressPercent}>{client.summary.progress_percent}%</Text>
-              <View
-                style={[
-                  styles.statusPill,
-                  client.has_court
-                    ? styles.statusCourt
-                    : status === 'done'
-                      ? styles.statusDone
-                      : isLate || status === 'stuck'
-                        ? styles.statusLate
-                        : styles.statusActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.statusText,
-                    client.has_court
-                      ? styles.statusCourtText
-                      : status === 'done'
-                        ? styles.statusDoneText
-                        : isLate || status === 'stuck'
-                          ? styles.statusLateText
-                          : styles.statusActiveText,
-                  ]}
-                >
-                  {statusLabel}
-                </Text>
-              </View>
-            </View>
-
             <View style={styles.hintsRow}>
               {client.phone ? (
                 <View style={styles.inlineHint}>
@@ -148,9 +147,6 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
             </View>
           </View>
 
-          <Text style={styles.meta} numberOfLines={1}>
-            {client.asset || 'تمويل'} · {client.summary.paid_count}/{client.months} شهر
-          </Text>
         </View>
       </View>
 
@@ -269,15 +265,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'right',
   },
-  subRow: {
+  badgesRow: {
     width: '100%',
     flexDirection: 'row-reverse',
     alignItems: 'center',
+    gap: 6,
   },
   cadencePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
+    minWidth: 72,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cadenceRegular: {
     backgroundColor: '#f3f1ec',
@@ -286,8 +286,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerSoft,
   },
   cadenceText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
   },
   cadenceRegularText: {
     color: colors.textMuted,
@@ -296,8 +296,9 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   meta: {
+    flexShrink: 1,
     color: colors.textMuted,
-    fontSize: 13,
+    fontSize: 12,
     textAlign: 'right',
   },
   detailRow: {
@@ -353,18 +354,7 @@ const styles = StyleSheet.create({
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-  },
-  statusGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  progressPercent: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: '700',
+    justifyContent: 'flex-end',
   },
   statusPill: {
     minWidth: 72,
