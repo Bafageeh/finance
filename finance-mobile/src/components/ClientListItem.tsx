@@ -104,32 +104,6 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
             {client.asset || 'تمويل'} · {client.summary.paid_count}/{client.months} شهر
           </Text>
 
-          {!isDoneClient ? (
-            <View style={styles.detailRow}>
-              <View style={[styles.detailPill, firstOverdueItem && styles.detailPillLate]}>
-                <Text style={[styles.detailLabel, firstOverdueItem && styles.detailLabelLate]}>{paymentDateLabel}</Text>
-                <Text style={[styles.detailValue, firstOverdueItem && styles.detailValueLate]} numberOfLines={1}>{paymentDisplayDate}</Text>
-              </View>
-              <View style={styles.detailPill}>
-                <Text style={styles.detailLabel}>رأس المال المتبقي</Text>
-                <Text style={styles.detailValue} numberOfLines={1}>{formatCurrency(remainingPrincipal)}</Text>
-              </View>
-            </View>
-          ) : null}
-
-          {!isDoneClient ? (
-            <View style={styles.detailRow}>
-              <View style={styles.detailPill}>
-                <Text style={styles.detailLabel}>المتبقي</Text>
-                <Text style={styles.detailValue} numberOfLines={1}>{formatCurrency(client.summary.remaining_amount)}</Text>
-              </View>
-              <View style={[styles.detailPill, styles.profitRatePill]}>
-                <Text style={[styles.detailLabel, styles.profitRateLabel]}>نسبة ربح أحمد</Text>
-                <Text style={[styles.detailValue, styles.profitRateValue]} numberOfLines={1}>{ahmadProfitRate.toFixed(2)}%</Text>
-              </View>
-            </View>
-          ) : null}
-
           <View style={styles.footerRow}>
             <View style={styles.statusGroup}>
               <Text style={styles.progressPercent}>{client.summary.progress_percent}%</Text>
@@ -175,6 +149,27 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
           </View>
         </View>
       </View>
+
+      {!isDoneClient ? (
+        <View style={styles.detailRow}>
+          <View style={[styles.detailPill, firstOverdueItem && styles.detailPillLate]}>
+            <Text style={[styles.detailLabel, firstOverdueItem && styles.detailLabelLate]} numberOfLines={1}>{paymentDateLabel}</Text>
+            <Text style={[styles.detailValue, firstOverdueItem && styles.detailValueLate]} numberOfLines={1}>{paymentDisplayDate}</Text>
+          </View>
+          <View style={styles.detailPill}>
+            <Text style={styles.detailLabel} numberOfLines={1}>رأس المال المتبقي</Text>
+            <Text style={styles.detailValue} numberOfLines={1}>{formatCurrency(remainingPrincipal)}</Text>
+          </View>
+          <View style={styles.detailPill}>
+            <Text style={styles.detailLabel} numberOfLines={1}>المتبقي</Text>
+            <Text style={styles.detailValue} numberOfLines={1}>{formatCurrency(client.summary.remaining_amount)}</Text>
+          </View>
+          <View style={[styles.detailPill, styles.profitRatePill]}>
+            <Text style={[styles.detailLabel, styles.profitRateLabel]} numberOfLines={1}>نسبة ربح أحمد</Text>
+            <Text style={[styles.detailValue, styles.profitRateValue]} numberOfLines={1}>{ahmadProfitRate.toFixed(2)}%</Text>
+          </View>
+        </View>
+      ) : null}
 
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${client.summary.progress_percent}%`, backgroundColor: progressColor }]} />
@@ -307,12 +302,13 @@ const styles = StyleSheet.create({
   },
   detailPill: {
     flex: 1,
+    minWidth: 0,
     minHeight: 42,
     borderRadius: 14,
     backgroundColor: '#faf9f6',
     borderWidth: 1,
     borderColor: '#eee8de',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
     paddingVertical: 6,
     alignItems: 'flex-end',
     justifyContent: 'center',
@@ -334,7 +330,7 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     color: colors.textMuted,
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '800',
     textAlign: 'right',
   },
@@ -343,7 +339,7 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     color: colors.text,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
     textAlign: 'right',
   },
@@ -422,10 +418,3 @@ const styles = StyleSheet.create({
     height: 6,
     backgroundColor: '#ebe7df',
     borderRadius: 999,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-});
