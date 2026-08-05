@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Client } from '@/types/api';
 import { getClientAlertInfo, getNextUnpaidScheduleItem, getOverdueScheduleItems } from '@/utils/finance';
-import { formatCurrency, formatDate, getClientDisplayStatus, getInitials } from '@/utils/format';
+import { formatCurrency, formatDate, getClientDisplayStatus } from '@/utils/format';
 import { colors } from '@/utils/theme';
 
 interface ClientListItemProps {
@@ -78,19 +78,12 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
 
         <View style={styles.contentColumn}>
           <View style={styles.identityRow}>
-            <View style={styles.avatarWrap}>
-              <View style={[styles.avatar, client.has_court ? styles.avatarCourt : styles.avatarDefault]}>
-                <Text style={[styles.avatarText, client.has_court && styles.avatarTextCourt]}>
-                  {getInitials(client.name)}
-                </Text>
-              </View>
-            </View>
-
             <View style={styles.nameStack}>
               <View style={styles.nameRow}>
                 <Text style={styles.name} numberOfLines={1}>
                   {client.name}
                 </Text>
+                <Ionicons name="chatbubble-ellipses-outline" size={17} color={colors.textMuted} />
                 {client.has_court ? <Ionicons name="shield-outline" size={14} color={colors.court} /> : null}
               </View>
 
@@ -218,32 +211,6 @@ const styles = StyleSheet.create({
   identityRow: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 10,
-  },
-  avatarWrap: {
-    width: 48,
-    alignItems: 'flex-end',
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarDefault: {
-    backgroundColor: '#f2f1ee',
-  },
-  avatarCourt: {
-    backgroundColor: colors.courtSoft,
-  },
-  avatarText: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  avatarTextCourt: {
-    color: colors.court,
   },
   nameStack: {
     flex: 1,
@@ -272,10 +239,10 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   cadencePill: {
-    minWidth: 72,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 14,
+    minWidth: 52,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -286,7 +253,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerSoft,
   },
   cadenceText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '800',
   },
   cadenceRegularText: {
@@ -357,10 +324,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   statusPill: {
-    minWidth: 72,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 14,
+    minWidth: 52,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -377,7 +344,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.infoSoft,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '800',
   },
   statusActiveText: {
