@@ -58,82 +58,13 @@ jobs:
           API_URL=https://finance.pm.sa/api/v1
           ENV
 
+      - name: Validate Expo configuration
+        run: |
+          npx expo config --type public --json > /tmp/expo-config.json
+          npx expo-modules-autolinking react-native-config --platform android > /tmp/react-native-config.json
+
       - name: Generate Android project
         run: npx expo prebuild --platform android --clean
-
-      - name: Configure Android signing
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          set -Eeuo pipefail
-          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ] || [ -z "${ANDROID_KEYSTORE_PASSWORD:-}" ] || [ -z "${ANDROID_KEY_ALIAS:-}" ] || [ -z "${ANDROID_KEY_PASSWORD:-}" ]; then
-            echo "Android signing secrets are incomplete."
-            exit 1
-          fi
-
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > android/app/finance-release.keystore
-          test -s android/app/finance-release.keystore
-
-          cat >> android/gradle.properties <<EOF
-          FINANCE_RELEASE_STORE_FILE=finance-release.keystore
-          FINANCE_RELEASE_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD
-          FINANCE_RELEASE_KEY_ALIAS=$ANDROID_KEY_ALIAS
-          FINANCE_RELEASE_KEY_PASSWORD=$ANDROID_KEY_PASSWORD
-          EOF
-
-          python3 <<'PY'
-          from pathlib import Path
-
-          path = Path('android/app/build.gradle')
-          text = path.read_text()
-
-          if 'FINANCE_RELEASE_STORE_FILE' not in text:
-              marker = '        debug {'
-              start = text.find(marker)
-              if start == -1:
-                  raise SystemExit('Debug signing config not found')
-
-              depth = 0
-              end = None
-              for index in range(start, len(text)):
-                  char = text[index]
-                  if char == '{':
-                      depth += 1
-                  elif char == '}':
-                      depth -= 1
-                      if depth == 0:
-                          end = index + 1
-                          break
-              if end is None:
-                  raise SystemExit('Debug signing config end not found')
-
-              release_config = """
-                  release {
-                      storeFile file(FINANCE_RELEASE_STORE_FILE)
-                      storePassword FINANCE_RELEASE_STORE_PASSWORD
-                      keyAlias FINANCE_RELEASE_KEY_ALIAS
-                      keyPassword FINANCE_RELEASE_KEY_PASSWORD
-                  }
-              """
-              text = text[:end] + release_config + text[end:]
-
-          build_types_start = text.find('buildTypes')
-          release_start = text.find('release {', build_types_start)
-          if release_start == -1:
-              raise SystemExit('Release build type not found')
-
-          signing_index = text.find('signingConfig signingConfigs.debug', release_start)
-          if signing_index == -1:
-              raise SystemExit('Release debug signing reference not found')
-
-          old = 'signingConfig signingConfigs.debug'
-          new = 'signingConfig signingConfigs.release'
-          text = text[:signing_index] + new + text[signing_index + len(old):]
-          path.write_text(text)
-          PY
 
       - name: Build release APK with Gradle
         run: |
@@ -141,14 +72,44 @@ jobs:
           chmod +x gradlew
           ./gradlew :app:assembleRelease --console=plain
 
-      - name: Prepare APK files
+      - name: Sign and verify APK with production key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          mkdir -p ../apk-output
+          set -Eeuo pipefail
+          test -n "${ANDROID_KEYSTORE_BASE64:-}"
+          test -n "${KS_PASS:-}"
+          test -n "${KS_ALIAS:-}"
+          test -n "${KEY_PASS:-}"
+
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > finance-release.keystore
+          test -s finance-release.keystore
+
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          test -x "$BUILD_TOOLS/zipalign"
+          test -x "$BUILD_TOOLS/apksigner"
+
+          mkdir -p ../apk-output ../apk-work
           APK_PATH="$(find android/app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)"
           test -n "$APK_PATH"
-          cp "$APK_PATH" ../apk-output/finance-1.0.9-8.apk
-          cp "$APK_PATH" ../apk-output/finance-latest.apk
+          cp "$APK_PATH" ../apk-work/finance-input.apk
+          zip -d ../apk-work/finance-input.apk 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 'META-INF/*.SF' 'META-INF/*.MF' >/dev/null 2>&1 || true
+          "$BUILD_TOOLS/zipalign" -f -p 4 ../apk-work/finance-input.apk ../apk-work/finance-aligned.apk
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks finance-release.keystore \
+            --ks-pass env:KS_PASS \
+            --ks-key-alias "$KS_ALIAS" \
+            --key-pass env:KEY_PASS \
+            --out ../apk-output/finance-1.0.9-8.apk \
+            ../apk-work/finance-aligned.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs ../apk-output/finance-1.0.9-8.apk
+          "$BUILD_TOOLS/zipalign" -c -p 4 ../apk-output/finance-1.0.9-8.apk
+          cp ../apk-output/finance-1.0.9-8.apk ../apk-output/finance-latest.apk
           sha256sum ../apk-output/*.apk
+          ls -lh ../apk-output/*.apk
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
