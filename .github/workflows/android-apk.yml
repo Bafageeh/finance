@@ -82,13 +82,6 @@ jobs:
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > android/app/finance-release.keystore
           test -s android/app/finance-release.keystore
 
-          cat >> android/gradle.properties <<EOF
-          FINANCE_RELEASE_STORE_FILE=finance-release.keystore
-          FINANCE_RELEASE_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD
-          FINANCE_RELEASE_KEY_ALIAS=$ANDROID_KEY_ALIAS
-          FINANCE_RELEASE_KEY_PASSWORD=$ANDROID_KEY_PASSWORD
-          EOF
-
           python3 <<'PY'
           from pathlib import Path
 
@@ -116,10 +109,10 @@ jobs:
 
           release_config = """
               release {
-                  storeFile file(project.property('FINANCE_RELEASE_STORE_FILE'))
-                  storePassword project.property('FINANCE_RELEASE_STORE_PASSWORD')
-                  keyAlias project.property('FINANCE_RELEASE_KEY_ALIAS')
-                  keyPassword project.property('FINANCE_RELEASE_KEY_PASSWORD')
+                  storeFile file("${projectDir}/finance-release.keystore")
+                  storePassword System.getenv('FINANCE_RELEASE_STORE_PASSWORD')
+                  keyAlias System.getenv('FINANCE_RELEASE_KEY_ALIAS')
+                  keyPassword System.getenv('FINANCE_RELEASE_KEY_PASSWORD')
               }
           """
           text = text[:end] + release_config + text[end:]
@@ -137,6 +130,10 @@ jobs:
           PY
 
       - name: Build release APK with Gradle
+        env:
+          FINANCE_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          FINANCE_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          FINANCE_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           cd android
           chmod +x gradlew
