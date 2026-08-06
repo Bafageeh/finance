@@ -9,12 +9,18 @@ on:
     paths:
       - 'finance-mobile/**'
       - '.github/workflows/android-apk.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'finance-mobile/**'
+      - '.github/workflows/android-apk.yml'
 
 permissions:
   contents: write
 
 concurrency:
-  group: finance-android-apk
+  group: finance-android-apk-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -181,6 +187,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish commit APK release
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -196,6 +203,7 @@ jobs:
           gh release upload "$TAG" apk-output/finance-latest.apk --clobber
 
       - name: Publish latest APK release
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -208,6 +216,7 @@ jobs:
           gh release upload finance-latest-apk apk-output/finance-latest.apk --clobber
 
       - name: Record successful APK build
+        if: github.event_name != 'pull_request'
         run: |
           cd ..
           VERSION="$(node -p "require('./finance-mobile/app.json').expo.version")"
