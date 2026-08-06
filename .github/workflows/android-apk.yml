@@ -1,5 +1,5 @@
 name: Build Finance APK
-# Build trigger: 2026-07-31 release after client card refinements
+# Build trigger and success marker for verified APK releases
 
 on:
   workflow_dispatch:
@@ -206,3 +206,28 @@ jobs:
               --notes 'آخر نسخة APK مبنية محليًا عبر Gradle بدون استخدام EAS.'
           fi
           gh release upload finance-latest-apk apk-output/finance-latest.apk --clobber
+
+      - name: Record successful APK build
+        run: |
+          cd ..
+          VERSION="$(node -p "require('./finance-mobile/app.json').expo.version")"
+          VERSION_CODE="$(node -p "require('./finance-mobile/app.json').expo.android.versionCode")"
+          mkdir -p .github/build-status
+          cat > .github/build-status/finance-apk.json <<EOF
+          {
+            "status": "success",
+            "commit": "${GITHUB_SHA}",
+            "version": "${VERSION}",
+            "versionCode": ${VERSION_CODE},
+            "releaseUrl": "https://github.com/Bafageeh/finance/releases/tag/finance-apk-${GITHUB_SHA}",
+            "apkUrl": "https://github.com/Bafageeh/finance/releases/download/finance-apk-${GITHUB_SHA}/finance-${GITHUB_SHA}.apk"
+          }
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/build-status/finance-apk.json
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "ci: record successful Finance APK ${GITHUB_SHA}"
+          git push
