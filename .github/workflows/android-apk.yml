@@ -116,10 +116,10 @@ jobs:
 
           release_config = """
               release {
-                  storeFile file(FINANCE_RELEASE_STORE_FILE)
-                  storePassword FINANCE_RELEASE_STORE_PASSWORD
-                  keyAlias FINANCE_RELEASE_KEY_ALIAS
-                  keyPassword FINANCE_RELEASE_KEY_PASSWORD
+                  storeFile file(project.property('FINANCE_RELEASE_STORE_FILE'))
+                  storePassword project.property('FINANCE_RELEASE_STORE_PASSWORD')
+                  keyAlias project.property('FINANCE_RELEASE_KEY_ALIAS')
+                  keyPassword project.property('FINANCE_RELEASE_KEY_PASSWORD')
               }
           """
           text = text[:end] + release_config + text[end:]
