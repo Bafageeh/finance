@@ -1,19 +1,19 @@
 name: Build Finance APK
 
 on:
-  workflow_dispatch:
-  push:
+  pull_request:
     branches:
       - main
     paths:
       - 'finance-mobile/**'
       - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: finance-android-apk-main
+  group: finance-signed-apk-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -58,6 +58,11 @@ jobs:
           API_URL=https://finance.pm.sa/api/v1
           ENV
 
+      - name: Validate Expo configuration
+        run: |
+          npx expo config --type public --json > /tmp/expo-config.json
+          npx expo-modules-autolinking react-native-config --platform android > /tmp/react-native-config.json
+
       - name: Generate Android project
         run: npx expo prebuild --platform android --clean
 
@@ -90,44 +95,40 @@ jobs:
           path = Path('android/app/build.gradle')
           text = path.read_text()
 
-          if 'FINANCE_RELEASE_STORE_FILE' not in text:
-              marker = '        debug {'
-              start = text.find(marker)
-              if start == -1:
-                  raise SystemExit('Debug signing config not found')
+          marker = '        debug {'
+          start = text.find(marker)
+          if start == -1:
+              raise SystemExit('Debug signing config not found')
 
-              depth = 0
-              end = None
-              for index in range(start, len(text)):
-                  char = text[index]
-                  if char == '{':
-                      depth += 1
-                  elif char == '}':
-                      depth -= 1
-                      if depth == 0:
-                          end = index + 1
-                          break
-              if end is None:
-                  raise SystemExit('Debug signing config end not found')
+          depth = 0
+          end = None
+          for index in range(start, len(text)):
+              char = text[index]
+              if char == '{':
+                  depth += 1
+              elif char == '}':
+                  depth -= 1
+                  if depth == 0:
+                      end = index + 1
+                      break
+          if end is None:
+              raise SystemExit('Debug signing config end not found')
 
-              release_config = """
-                  release {
-                      storeFile file(FINANCE_RELEASE_STORE_FILE)
-                      storePassword FINANCE_RELEASE_STORE_PASSWORD
-                      keyAlias FINANCE_RELEASE_KEY_ALIAS
-                      keyPassword FINANCE_RELEASE_KEY_PASSWORD
-                  }
-              """
-              text = text[:end] + release_config + text[end:]
+          release_config = """
+              release {
+                  storeFile file(FINANCE_RELEASE_STORE_FILE)
+                  storePassword FINANCE_RELEASE_STORE_PASSWORD
+                  keyAlias FINANCE_RELEASE_KEY_ALIAS
+                  keyPassword FINANCE_RELEASE_KEY_PASSWORD
+              }
+          """
+          text = text[:end] + release_config + text[end:]
 
           build_types_start = text.find('buildTypes')
           release_start = text.find('release {', build_types_start)
-          if release_start == -1:
-              raise SystemExit('Release build type not found')
-
           signing_index = text.find('signingConfig signingConfigs.debug', release_start)
-          if signing_index == -1:
-              raise SystemExit('Release debug signing reference not found')
+          if release_start == -1 or signing_index == -1:
+              raise SystemExit('Release signing reference not found')
 
           old = 'signingConfig signingConfigs.debug'
           new = 'signingConfig signingConfigs.release'
@@ -141,36 +142,17 @@ jobs:
           chmod +x gradlew
           ./gradlew :app:assembleRelease --console=plain
 
-      - name: Prepare APK files
+      - name: Prepare signed APK artifact
         run: |
           mkdir -p ../apk-output
           APK_PATH="$(find android/app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)"
           test -n "$APK_PATH"
-          cp "$APK_PATH" ../apk-output/finance-1.0.9-8.apk
-          cp "$APK_PATH" ../apk-output/finance-latest.apk
-          sha256sum ../apk-output/*.apk
+          cp "$APK_PATH" ../apk-output/finance-1.0.9-8-signed.apk
+          sha256sum ../apk-output/finance-1.0.9-8-signed.apk
 
-      - name: Upload workflow artifact
+      - name: Upload signed APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: finance-signed-apk-${{ github.sha }}
-          path: apk-output/*.apk
+          name: finance-signed-apk-1.0.9-8
+          path: apk-output/finance-1.0.9-8-signed.apk
           if-no-files-found: error
-
-      - name: Publish commit release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cd ..
-          TAG="finance-apk-${GITHUB_SHA}"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Finance APK 1.0.9 (8)" --notes "نسخة Android موقعة، مبنية عبر GitHub Actions وGradle دون استخدام EAS."
-          gh release upload "$TAG" apk-output/finance-1.0.9-8.apk --clobber
-          gh release upload "$TAG" apk-output/finance-latest.apk --clobber
-
-      - name: Publish latest release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cd ..
-          gh release view finance-latest-apk >/dev/null 2>&1 || gh release create finance-latest-apk --title "Finance Latest APK" --notes "آخر نسخة APK موقعة مبنية عبر Gradle دون استخدام EAS."
-          gh release upload finance-latest-apk apk-output/finance-latest.apk --clobber
