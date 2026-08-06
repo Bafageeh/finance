@@ -1,0 +1,86 @@
+name: Re-sign Finance APK
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/resign-finance-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  resign-apk:
+    name: Sign and verify Finance APK without EAS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download verified release APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: finance-apk-1.0.9-8
+          path: source-apk
+          github-token: ${{ github.token }}
+          repository: Bafageeh/finance
+          run-id: 31096832009
+
+      - name: Decode production signing keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          set -Eeuo pipefail
+          test -n "${ANDROID_KEYSTORE_BASE64:-}"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > finance-release.keystore
+          test -s finance-release.keystore
+
+      - name: Remove old signature and align APK
+        run: |
+          set -Eeuo pipefail
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          test -x "$BUILD_TOOLS/zipalign"
+          mkdir -p signed-output work
+          cp source-apk/finance-1.0.9-8.apk work/finance-input.apk
+          zip -d work/finance-input.apk 'META-INF/*.RSA' 'META-INF/*.DSA' 'META-INF/*.EC' 'META-INF/*.SF' 'META-INF/*.MF' >/dev/null 2>&1 || true
+          "$BUILD_TOOLS/zipalign" -f -p 4 work/finance-input.apk work/finance-aligned.apk
+
+      - name: Sign APK with production key
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          test -n "${KS_PASS:-}"
+          test -n "${KS_ALIAS:-}"
+          test -n "${KEY_PASS:-}"
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks finance-release.keystore \
+            --ks-pass env:KS_PASS \
+            --ks-key-alias "$KS_ALIAS" \
+            --key-pass env:KEY_PASS \
+            --out signed-output/finance-1.0.9-8-signed.apk \
+            work/finance-aligned.apk
+
+      - name: Verify APK signature and metadata
+        run: |
+          set -Eeuo pipefail
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs signed-output/finance-1.0.9-8-signed.apk
+          "$BUILD_TOOLS/zipalign" -c -p 4 signed-output/finance-1.0.9-8-signed.apk
+          sha256sum signed-output/finance-1.0.9-8-signed.apk
+          ls -lh signed-output/finance-1.0.9-8-signed.apk
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-production-signed-apk-1.0.9-8
+          path: signed-output/finance-1.0.9-8-signed.apk
+          if-no-files-found: error
