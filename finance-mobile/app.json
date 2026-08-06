@@ -3,12 +3,12 @@
     "name": "إدارة التمويل",
     "slug": "finance-mobile",
     "scheme": "finance-mobile",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.example.financemobile",
-      "versionCode": 7,
+      "versionCode": 8,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
