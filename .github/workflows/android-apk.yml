@@ -13,12 +13,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: finance-apk-diagnostic-${{ github.ref }}
+  group: finance-signed-apk-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build-apk:
-    name: Build Android APK without EAS
+    name: Build signed Android APK without EAS
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -28,7 +28,6 @@ jobs:
       EXPO_PUBLIC_API_URL: https://finance.pm.sa/api/v1
       EXPO_PUBLIC_API_BASE_URL: https://finance.pm.sa/api/v1
       API_URL: https://finance.pm.sa/api/v1
-      EXPO_DEBUG: '1'
 
     steps:
       - name: Checkout repository
@@ -60,34 +59,100 @@ jobs:
           ENV
 
       - name: Validate Expo configuration
-        run: npx expo config --type public --json > /tmp/expo-config.json
-
-      - name: Validate Expo module autolinking
         run: |
-          npx expo-modules-autolinking search > /tmp/expo-autolinking-search.json
-          npx expo-modules-autolinking resolve --platform android > /tmp/expo-autolinking-android.json
+          npx expo config --type public --json > /tmp/expo-config.json
           npx expo-modules-autolinking react-native-config --platform android > /tmp/react-native-config.json
 
       - name: Generate Android project
         run: npx expo prebuild --platform android --clean
 
+      - name: Configure Android signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${ANDROID_KEYSTORE_BASE64:-}" ] || [ -z "${ANDROID_KEYSTORE_PASSWORD:-}" ] || [ -z "${ANDROID_KEY_ALIAS:-}" ] || [ -z "${ANDROID_KEY_PASSWORD:-}" ]; then
+            echo "Android signing secrets are incomplete."
+            exit 1
+          fi
+
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > android/app/finance-release.keystore
+          test -s android/app/finance-release.keystore
+
+          cat >> android/gradle.properties <<EOF
+          FINANCE_RELEASE_STORE_FILE=finance-release.keystore
+          FINANCE_RELEASE_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD
+          FINANCE_RELEASE_KEY_ALIAS=$ANDROID_KEY_ALIAS
+          FINANCE_RELEASE_KEY_PASSWORD=$ANDROID_KEY_PASSWORD
+          EOF
+
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('android/app/build.gradle')
+          text = path.read_text()
+
+          marker = '        debug {'
+          start = text.find(marker)
+          if start == -1:
+              raise SystemExit('Debug signing config not found')
+
+          depth = 0
+          end = None
+          for index in range(start, len(text)):
+              char = text[index]
+              if char == '{':
+                  depth += 1
+              elif char == '}':
+                  depth -= 1
+                  if depth == 0:
+                      end = index + 1
+                      break
+          if end is None:
+              raise SystemExit('Debug signing config end not found')
+
+          release_config = """
+              release {
+                  storeFile file(FINANCE_RELEASE_STORE_FILE)
+                  storePassword FINANCE_RELEASE_STORE_PASSWORD
+                  keyAlias FINANCE_RELEASE_KEY_ALIAS
+                  keyPassword FINANCE_RELEASE_KEY_PASSWORD
+              }
+          """
+          text = text[:end] + release_config + text[end:]
+
+          build_types_start = text.find('buildTypes')
+          release_start = text.find('release {', build_types_start)
+          signing_index = text.find('signingConfig signingConfigs.debug', release_start)
+          if release_start == -1 or signing_index == -1:
+              raise SystemExit('Release signing reference not found')
+
+          old = 'signingConfig signingConfigs.debug'
+          new = 'signingConfig signingConfigs.release'
+          text = text[:signing_index] + new + text[signing_index + len(old):]
+          path.write_text(text)
+          PY
+
       - name: Build release APK with Gradle
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew :app:assembleRelease --stacktrace --info --console=plain
+          ./gradlew :app:assembleRelease --console=plain
 
-      - name: Prepare APK artifact
+      - name: Prepare signed APK artifact
         run: |
           mkdir -p ../apk-output
           APK_PATH="$(find android/app/build/outputs/apk/release -name '*.apk' -type f | head -n 1)"
           test -n "$APK_PATH"
-          cp "$APK_PATH" ../apk-output/finance-1.0.9-8.apk
-          ls -lh ../apk-output/finance-1.0.9-8.apk
+          cp "$APK_PATH" ../apk-output/finance-1.0.9-8-signed.apk
+          sha256sum ../apk-output/finance-1.0.9-8-signed.apk
 
-      - name: Upload APK artifact
+      - name: Upload signed APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: finance-apk-1.0.9-8
-          path: apk-output/finance-1.0.9-8.apk
+          name: finance-signed-apk-1.0.9-8
+          path: apk-output/finance-1.0.9-8-signed.apk
           if-no-files-found: error
