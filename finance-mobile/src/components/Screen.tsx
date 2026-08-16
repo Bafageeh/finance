@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { PropsWithChildren, ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Children, cloneElement, isValidElement, PropsWithChildren, ReactElement, ReactNode } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleProp, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/utils/theme';
 
@@ -16,6 +16,17 @@ interface ScreenProps extends PropsWithChildren {
   compactHeader?: boolean;
 }
 
+function fillViewportChildren(children: ReactNode) {
+  return Children.map(children, (child) => {
+    if (!isValidElement(child)) return child;
+
+    const currentStyle = (child.props as { style?: StyleProp<ViewStyle> }).style;
+    return cloneElement(child as ReactElement<any>, {
+      style: [styles.viewportChild, currentStyle],
+    });
+  });
+}
+
 export function Screen({
   title,
   subtitle,
@@ -28,38 +39,35 @@ export function Screen({
   compactHeader = false,
   children,
 }: ScreenProps) {
-  const content = (
-    <>
-      <View style={[styles.header, compactHeader && styles.headerCompact]}>
-        <View style={styles.headerTopRow}>
-          <View style={styles.headerText}>
-            <Text style={[styles.title, compactHeader && styles.titleCompact]}>{title}</Text>
-            {subtitle ? <Text style={[styles.subtitle, compactHeader && styles.subtitleCompact]}>{subtitle}</Text> : null}
-          </View>
+  const header = (
+    <View style={[styles.header, compactHeader && styles.headerCompact]}>
+      <View style={styles.headerTopRow}>
+        <View style={styles.headerText}>
+          <Text style={[styles.title, compactHeader && styles.titleCompact]}>{title}</Text>
+          {subtitle ? <Text style={[styles.subtitle, compactHeader && styles.subtitleCompact]}>{subtitle}</Text> : null}
+        </View>
 
-          <View style={styles.headerActions}>
-            {rightSlot ? rightSlot : null}
-            {actionLabel && onActionPress ? (
-              actionMode === 'icon' ? (
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel={actionLabel}
-                  style={[styles.iconActionButton, compactHeader && styles.iconActionButtonCompact]}
-                  onPress={onActionPress}
-                >
-                  <Ionicons name={actionIcon} size={compactHeader ? 18 : 20} color="#fff" />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.actionButton} onPress={onActionPress}>
-                  <Text style={styles.actionText}>{actionLabel}</Text>
-                </TouchableOpacity>
-              )
-            ) : null}
-          </View>
+        <View style={styles.headerActions}>
+          {rightSlot ? rightSlot : null}
+          {actionLabel && onActionPress ? (
+            actionMode === 'icon' ? (
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={actionLabel}
+                style={[styles.iconActionButton, compactHeader && styles.iconActionButtonCompact]}
+                onPress={onActionPress}
+              >
+                <Ionicons name={actionIcon} size={compactHeader ? 18 : 20} color="#fff" />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.actionButton} onPress={onActionPress}>
+                <Text style={styles.actionText}>{actionLabel}</Text>
+              </TouchableOpacity>
+            )
+          ) : null}
         </View>
       </View>
-      {children}
-    </>
+    </View>
   );
 
   return (
@@ -71,15 +79,22 @@ export function Screen({
       >
         {scrollable ? (
           <ScrollView
+            style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
+            contentInsetAdjustmentBehavior="automatic"
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
             showsVerticalScrollIndicator={false}
           >
-            {content}
+            {header}
+            {children}
           </ScrollView>
         ) : (
-          <View style={styles.content}>{content}</View>
+          <View style={styles.content}>
+            {header}
+            <View style={styles.viewportBody}>{fillViewportChildren(children)}</View>
+          </View>
         )}
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -94,17 +109,34 @@ const styles = StyleSheet.create({
   keyboardAvoider: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
     flex: 1,
+    width: '100%',
+    maxWidth: 1024,
+    alignSelf: 'center',
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 20,
   },
+  viewportBody: {
+    flex: 1,
+    minHeight: 0,
+  },
+  viewportChild: {
+    flex: 1,
+    minHeight: 0,
+  },
   scrollContent: {
     flexGrow: 1,
+    width: '100%',
+    maxWidth: 1024,
+    alignSelf: 'center',
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 36,
+    paddingBottom: 44,
   },
   header: {
     marginBottom: 16,
