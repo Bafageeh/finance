@@ -1,5 +1,6 @@
 TestFlight build trigger
-Requested: 2026-07-31 18:00 Asia/Riyadh
-Attempt: 3
+Requested: 2026-08-16
+Attempt: iPad App Review fix
 Target: sa.pm.finance
-Version: 1.0.6 (13)
+Version: 1.0.9 (15)
+Reason: Fix clipped and inaccessible scrolling content on iPad for Guideline 4 Design resubmission.
