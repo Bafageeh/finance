@@ -36,10 +36,11 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps --no-audit --no-fund
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Build production iOS and submit to TestFlight
         env:
           EXPO_PUBLIC_API_BASE_URL: https://finance.pm.sa/api/v1
           EXPO_PUBLIC_USE_MOCKS: 'false'
+          EAS_NO_FROZEN_LOCKFILE: '1'
         run: eas build --platform ios --profile production --auto-submit --non-interactive --wait
