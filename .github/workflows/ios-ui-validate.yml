@@ -1,0 +1,44 @@
+name: Validate Finance iOS
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'finance-mobile/**'
+      - '.github/workflows/ios-ui-validate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-ios:
+    name: Validate Expo iOS bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: finance-mobile
+    env:
+      EXPO_PUBLIC_API_URL: https://finance.pm.sa/api/v1
+      EXPO_PUBLIC_API_BASE_URL: https://finance.pm.sa/api/v1
+      EXPO_PUBLIC_USE_MOCKS: 'false'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate Expo config
+        run: npx expo config --type public --json > /tmp/finance-expo-config.json
+
+      - name: Export iOS bundle
+        run: npx expo export --platform ios --output-dir dist-ios --clear
