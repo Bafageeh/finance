@@ -64,7 +64,6 @@ export default function SignInScreen() {
 
   return (
     <Screen
-      scrollable={false}
       title={hasSavedSession ? `الدخول باستخدام ${biometricLabel}` : 'تسجيل الدخول'}
       subtitle={hasSavedSession ? `تم حفظ الحساب على هذا الجهاز. الدخول الآن باستخدام ${biometricLabel}.` : 'أدخل اسم المستخدم أو رقم الجوال وكلمة المرور أول مرة فقط، وبعدها يتم الدخول بالبصمة أو بصمة الوجه في الآيفون.'}
     >
