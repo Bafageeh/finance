@@ -16,7 +16,7 @@
     },
     "ios": {
       "bundleIdentifier": "sa.pm.finance",
-      "buildNumber": "15",
+      "buildNumber": "16",
       "infoPlist": {
         "NSFaceIDUsageDescription": "يستخدم تطبيق التمويل بصمة الوجه لتسجيل الدخول السريع بعد أول دخول بكلمة المرور."
       }

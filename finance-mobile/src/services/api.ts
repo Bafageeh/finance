@@ -43,18 +43,18 @@ export interface AdminAccountSummary {
 }
 
 export interface CreateUserOtpPayload {
-  phone: string;
+  phone?: string;
   username?: string;
 }
 
 export interface CreateUserWithOtpPayload {
   name: string;
   username: string;
-  phone: string;
+  phone?: string;
   email?: string;
   password: string;
   password_confirmation: string;
-  otp: string;
+  otp?: string;
   account_id?: number | string | null;
 }
 
@@ -268,6 +268,15 @@ export async function changePassword(payload: {
   });
 }
 
+export async function deleteAccountRemote(): Promise<void> {
+  if (USE_MOCKS) return;
+
+  await requestOptional<any>(['/auth/account', '/account', '/user'], {
+    method: 'DELETE',
+  });
+  setApiToken(null);
+}
+
 export async function getAdminAccounts(): Promise<AdminAccountSummary[]> {
   if (USE_MOCKS) return [];
 
@@ -332,12 +341,12 @@ export async function verifyCreateUserOtp(payload: CreateUserWithOtpPayload): Pr
       id: Date.now(),
       name: payload.name,
       username: payload.username,
-      phone: payload.phone,
+      phone: payload.phone || null,
       role: 'user',
     };
   }
 
-  const response = await request<ApiEnvelope<CreatedUserSummary> | CreatedUserSummary>('/admin/users/otp/verify', {
+  const response = await request<ApiEnvelope<CreatedUserSummary> | CreatedUserSummary>('/admin/users/create', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

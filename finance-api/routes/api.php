@@ -30,6 +30,8 @@ Route::prefix('v1')->group(function () {
     Route::post('users/otp/verify', [UserCreationController::class, 'verifyOtp'])->middleware('throttle:10,1');
     Route::post('admin/users/otp/request', [UserCreationController::class, 'requestOtp'])->middleware('throttle:6,1');
     Route::post('admin/users/otp/verify', [UserCreationController::class, 'verifyOtp'])->middleware('throttle:10,1');
+    Route::post('users/create', [UserCreationController::class, 'store'])->middleware('throttle:10,1');
+    Route::post('admin/users/create', [UserCreationController::class, 'store'])->middleware('throttle:10,1');
 
     Route::middleware('finance.auth')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
@@ -37,6 +39,9 @@ Route::prefix('v1')->group(function () {
         Route::get('user', [AuthController::class, 'me']);
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::post('logout', [AuthController::class, 'logout']);
+        Route::delete('auth/account', [AuthController::class, 'deleteAccount'])->middleware('throttle:4,1');
+        Route::delete('account', [AuthController::class, 'deleteAccount'])->middleware('throttle:4,1');
+        Route::delete('user', [AuthController::class, 'deleteAccount'])->middleware('throttle:4,1');
         Route::post('auth/change-password', [AuthController::class, 'changePassword'])->middleware('throttle:6,1');
         Route::post('auth/password', [AuthController::class, 'changePassword'])->middleware('throttle:6,1');
         Route::post('password/change', [AuthController::class, 'changePassword'])->middleware('throttle:6,1');

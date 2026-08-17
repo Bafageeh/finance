@@ -9,6 +9,7 @@ use App\Models\PersonalAccessToken;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -70,6 +71,43 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'تم تسجيل الخروج بنجاح.',
+        ]);
+    }
+
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user) {
+            throw ValidationException::withMessages([
+                'user' => ['يلزم تسجيل الدخول أولاً.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($user): void {
+            PersonalAccessToken::query()->where('user_id', $user->id)->delete();
+
+            if (Schema::hasTable('sessions') && Schema::hasColumn('sessions', 'user_id')) {
+                DB::table('sessions')->where('user_id', $user->id)->delete();
+            }
+
+            if (Schema::hasTable('user_creation_otps') && Schema::hasColumn('user_creation_otps', 'created_by_user_id')) {
+                DB::table('user_creation_otps')->where('created_by_user_id', $user->id)->update([
+                    'created_by_user_id' => null,
+                ]);
+            }
+
+            if (Schema::hasTable('clients') && Schema::hasColumn('clients', 'user_id')) {
+                DB::table('clients')->where('user_id', $user->id)->update([
+                    'user_id' => null,
+                ]);
+            }
+
+            $user->delete();
+        });
+
+        return response()->json([
+            'message' => 'تم حذف الحساب بنجاح.',
         ]);
     }
 

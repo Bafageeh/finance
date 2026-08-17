@@ -28,9 +28,10 @@ function maskToken(token?: string) {
 }
 
 export default function AccountScreen() {
-  const { session, signOut, refreshProfile, isGuestSession } = useSession();
+  const { session, signOut, deleteAccount, refreshProfile, isGuestSession } = useSession();
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordSheetVisible, setPasswordSheetVisible] = useState(false);
   const [accountsSheetVisible, setAccountsSheetVisible] = useState(false);
@@ -99,6 +100,44 @@ export default function AccountScreen() {
       Alert.alert('تعذر تنفيذ العملية', error instanceof Error ? error.message : 'حدث خطأ غير متوقع.');
     } finally {
       setSigningOut(false);
+    }
+  }
+
+  function confirmDeleteAccount() {
+    if (isGuestSession || deletingAccount) return;
+
+    Alert.alert(
+      'حذف الحساب',
+      'سيتم حذف حساب المستخدم الحالي نهائيًا من التطبيق وتسجيل الخروج من هذا الجهاز. لا يؤثر ذلك على سجلات العملاء والتمويل الخاصة بالمنشأة.',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'متابعة',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'تأكيد الحذف النهائي',
+              'هل تريد حذف هذا الحساب الآن؟ لا يمكن التراجع عن هذه العملية.',
+              [
+                { text: 'إلغاء', style: 'cancel' },
+                { text: 'حذف الحساب', style: 'destructive', onPress: () => void handleDeleteAccount() },
+              ],
+            );
+          },
+        },
+      ],
+    );
+  }
+
+  async function handleDeleteAccount() {
+    try {
+      setDeletingAccount(true);
+      await deleteAccount();
+      Alert.alert('تم', 'تم حذف الحساب وتسجيل الخروج.');
+    } catch (error) {
+      Alert.alert('تعذر حذف الحساب', error instanceof Error ? error.message : 'حدث خطأ غير متوقع.');
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -211,7 +250,17 @@ export default function AccountScreen() {
           style={styles.fullAction}
         />
 
-        {(refreshing || signingOut || changingPassword || loadingAccounts) ? (
+        <ActionTile
+          label={deletingAccount ? 'جارٍ حذف الحساب' : 'حذف الحساب'}
+          icon="trash-outline"
+          onPress={confirmDeleteAccount}
+          tone="danger"
+          disabled={isGuestSession || deletingAccount}
+          style={styles.fullAction}
+        />
+        <Text style={styles.dangerNote}>حذف الحساب متاح من داخل التطبيق ويزيل حساب المستخدم الحالي نهائيًا.</Text>
+
+        {(refreshing || signingOut || deletingAccount || changingPassword || loadingAccounts) ? (
           <View style={styles.loaderRow}>
             <ActivityIndicator size="small" color={colors.primary} />
             <Text style={styles.loaderText}>يتم تنفيذ العملية الحالية...</Text>
@@ -225,7 +274,7 @@ export default function AccountScreen() {
             <View style={styles.adminIcon}><Ionicons name="shield-checkmark-outline" size={20} color={colors.success} /></View>
             <View style={styles.adminHintTextWrap}>
               <Text style={styles.adminHintTitle}>إنشاء المستخدمين وعرض الحسابات متاح للمدير فقط</Text>
-              <Text style={styles.adminHintText}>يمكن إنشاء مستخدم جديد بعد التحقق من رقم الجوال، أو عرض الحسابات المرتبطة وعدد المستخدمين والعملاء.</Text>
+              <Text style={styles.adminHintText}>يمكن إنشاء مستخدم جديد باسم الدخول وكلمة المرور، ورقم الجوال اختياري، أو عرض الحسابات المرتبطة وعدد المستخدمين والعملاء.</Text>
             </View>
           </View>
           <View style={styles.adminButtonsRow}>
@@ -351,6 +400,7 @@ const styles = StyleSheet.create({
   primaryActionsRow: { flexDirection: 'row-reverse', gap: 10 },
   halfAction: { flex: 1 },
   fullAction: { width: '100%' },
+  dangerNote: { color: colors.textMuted, fontSize: 12, lineHeight: 19, textAlign: 'right', fontWeight: '700' },
   loaderRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8 },
   loaderText: { fontSize: 12, color: colors.textMuted, fontWeight: '700' },
   adminHintRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12 },

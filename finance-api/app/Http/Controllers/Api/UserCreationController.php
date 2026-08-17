@@ -18,6 +18,48 @@ use Throwable;
 
 class UserCreationController extends Controller
 {
+    public function store(Request $request, WhatsAppService $messaging): JsonResponse
+    {
+        $actor = $request->user();
+
+        $rules = [
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'account_id' => ['nullable', 'integer', 'exists:accounts,id'],
+        ];
+
+        if (Schema::hasColumn('users', 'username')) {
+            $rules['username'] = ['required', 'string', 'max:255', Rule::unique('users', 'username')];
+        } else {
+            $rules['username'] = ['nullable', 'string', 'max:255'];
+        }
+
+        if (Schema::hasColumn('users', 'email')) {
+            $rules['email'] = ['nullable', 'email', 'max:255', Rule::unique('users', 'email')];
+        }
+
+        $validated = $request->validate($rules);
+        $phone = null;
+
+        if (! empty($validated['phone'])) {
+            $phone = $messaging->normalizeSaudiPhone($validated['phone']);
+
+            if (Schema::hasColumn('users', 'phone') && User::query()->where('phone', $phone)->exists()) {
+                throw ValidationException::withMessages([
+                    'phone' => ['يوجد مستخدم بهذا الرقم.'],
+                ]);
+            }
+        }
+
+        $user = $this->createUserFromValidatedData($validated, $actor, $phone);
+
+        return response()->json([
+            'message' => 'تم إنشاء المستخدم بنجاح.',
+            'data' => $this->formatCreatedUser($user, $phone),
+        ], 201);
+    }
+
     public function requestOtp(Request $request, WhatsAppService $messaging): JsonResponse
     {
         $actor = $request->user();
@@ -125,6 +167,17 @@ class UserCreationController extends Controller
             ]);
         }
 
+        $user = $this->createUserFromValidatedData($validated, $actor, $phone);
+        $otp->forceFill(['consumed_at' => now()])->save();
+
+        return response()->json([
+            'message' => 'تم إنشاء المستخدم بنجاح.',
+            'data' => $this->formatCreatedUser($user, $phone),
+        ], 201);
+    }
+
+    private function createUserFromValidatedData(array $validated, ?User $actor, ?string $phone): User
+    {
         $accountId = $actor?->account_id;
 
         if (! $accountId) {
@@ -142,7 +195,7 @@ class UserCreationController extends Controller
         }
 
         if (Schema::hasColumn('users', 'email')) {
-            $attributes['email'] = $validated['email'] ?? $this->generatedEmail($validated['username'] ?? $phone, $phone);
+            $attributes['email'] = $validated['email'] ?? $this->generatedEmail($validated['username'] ?? $validated['name'], $phone);
         }
 
         if (Schema::hasColumn('users', 'phone')) {
@@ -157,24 +210,22 @@ class UserCreationController extends Controller
             $attributes['role'] = 'user';
         }
 
-        $user = User::query()->create($attributes);
-
-        $otp->forceFill(['consumed_at' => now()])->save();
-
-        return response()->json([
-            'message' => 'تم إنشاء المستخدم بنجاح.',
-            'data' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'username' => $user->username ?? null,
-                'email' => $user->email ?? null,
-                'phone' => $this->maskPhone($phone),
-                'role' => Schema::hasColumn('users', 'role') ? $user->role : 'user',
-            ],
-        ], 201);
+        return User::query()->create($attributes);
     }
 
-    private function generatedEmail(string $username, string $phone): string
+    private function formatCreatedUser(User $user, ?string $phone): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'username' => $user->username ?? null,
+            'email' => $user->email ?? null,
+            'phone' => $phone ? $this->maskPhone($phone) : null,
+            'role' => Schema::hasColumn('users', 'role') ? $user->role : 'user',
+        ];
+    }
+
+    private function generatedEmail(string $username, ?string $phone): string
     {
         $base = Str::slug($username, '-') ?: 'user';
         $base = str_replace('-', '.', $base);
@@ -184,7 +235,7 @@ class UserCreationController extends Controller
             return $candidate;
         }
 
-        return 'u' . $phone . '@pm.sa';
+        return 'u' . ($phone ?: Str::lower(Str::random(10))) . '@pm.sa';
     }
 
     private function maskPhone(string $phone): string

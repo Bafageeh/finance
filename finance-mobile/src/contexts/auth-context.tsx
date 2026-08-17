@@ -2,7 +2,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 import { PropsWithChildren, createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
-import { getProfile, setApiToken, signIn as apiSignIn, signOutRemote } from '@/services/api';
+import { deleteAccountRemote, getProfile, setApiToken, signIn as apiSignIn, signOutRemote } from '@/services/api';
 import { AuthSession, LoginPayload } from '@/types/auth';
 import { clearManualLogoutForBiometrics, markManualLogoutForBiometrics } from '@/utils/biometric-logout-guard';
 
@@ -23,6 +23,7 @@ interface AuthContextValue {
   signInWithBiometric: () => Promise<void>;
   signOut: () => Promise<void>;
   resetSavedSession: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -221,6 +222,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }
 
+  async function deleteAccount() {
+    try {
+      if (session?.token) await deleteAccountRemote();
+    } finally {
+      await deleteStoredSession();
+      setSession(null);
+      setApiToken(null);
+      setHasSavedSession(false);
+    }
+  }
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -234,6 +246,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       signInWithBiometric,
       signOut,
       resetSavedSession,
+      deleteAccount,
       refreshProfile,
     }),
     [biometricAvailable, biometricLabel, hasSavedSession, isLoading, session],

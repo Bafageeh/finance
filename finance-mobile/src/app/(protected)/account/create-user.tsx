@@ -6,7 +6,7 @@ import { AppCard } from '@/components/AppCard';
 import { IconButton } from '@/components/IconButton';
 import { Screen } from '@/components/Screen';
 import { useSession } from '@/contexts/auth-context';
-import { requestCreateUserOtp, verifyCreateUserOtp } from '@/services/api';
+import { verifyCreateUserOtp } from '@/services/api';
 import { colors } from '@/utils/theme';
 
 function onlyDigits(value: string) {
@@ -26,53 +26,24 @@ export default function CreateUserScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [sendingOtp, setSendingOtp] = useState(false);
   const [creatingUser, setCreatingUser] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const sanitizedPhone = onlyDigits(phone);
-  const sanitizedOtp = onlyDigits(otp).slice(0, 6);
 
   function validateBaseFields() {
-    if (!name.trim()) return 'أدخل اسم المستخدم أو رقم الجوال.';
+    if (!name.trim()) return 'أدخل اسم المستخدم.';
     if (!username.trim()) return 'أدخل اسم الدخول.';
-    if (sanitizedPhone.length < 9) return 'أدخل رقم جوال صحيح.';
+    if (sanitizedPhone && sanitizedPhone.length < 9) return 'أدخل رقم جوال صحيح أو اتركه فارغًا.';
     if (password.length < 6) return 'كلمة المرور يجب أن تكون ٦ أحرف على الأقل.';
     if (password !== passwordConfirmation) return 'تأكيد كلمة المرور غير مطابق.';
     return null;
-  }
-
-  async function handleSendOtp() {
-    const validationError = validateBaseFields();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    try {
-      setSendingOtp(true);
-      setError(null);
-      await requestCreateUserOtp({ phone: sanitizedPhone, username: username.trim() });
-      setOtpSent(true);
-      Alert.alert('تم', 'تم إرسال رمز التحقق إلى رقم الجوال.');
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'تعذر إرسال رمز التحقق.');
-    } finally {
-      setSendingOtp(false);
-    }
   }
 
   async function handleCreateUser() {
     const validationError = validateBaseFields();
     if (validationError) {
       setError(validationError);
-      return;
-    }
-
-    if (sanitizedOtp.length !== 6) {
-      setError('أدخل رمز التحقق المكوّن من ٦ أرقام.');
       return;
     }
 
@@ -83,10 +54,9 @@ export default function CreateUserScreen() {
         name: name.trim(),
         username: username.trim(),
         email: email.trim() || undefined,
-        phone: sanitizedPhone,
+        phone: sanitizedPhone || undefined,
         password,
         password_confirmation: passwordConfirmation,
-        otp: sanitizedOtp,
       });
       Alert.alert('تم إنشاء المستخدم', `تم إنشاء ${created.name} بنجاح.`, [
         { text: 'حسنًا', onPress: () => router.back() },
@@ -115,13 +85,13 @@ export default function CreateUserScreen() {
   return (
     <Screen
       title="مستخدم جديد"
-      subtitle="أنشئ مستخدمًا جديدًا بعد التحقق من رقم الجوال."
+      subtitle="أنشئ مستخدمًا جديدًا باسم الدخول وكلمة المرور."
       rightSlot={<IconButton icon="arrow-forward" accessibilityLabel="رجوع" onPress={() => router.back()} />}
     >
       <AppCard title="بيانات المستخدم">
         <View style={styles.fieldsStack}>
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>اسم المستخدم أو رقم الجوال</Text>
+            <Text style={styles.fieldLabel}>اسم المستخدم</Text>
             <TextInput
               style={styles.input}
               value={name}
@@ -146,12 +116,12 @@ export default function CreateUserScreen() {
           </View>
 
           <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>رقم الجوال</Text>
+            <Text style={styles.fieldLabel}>رقم الجوال اختياري</Text>
             <TextInput
               style={styles.input}
               value={phone}
               onChangeText={setPhone}
-              placeholder="05xxxxxxxx"
+              placeholder="اختياري"
               placeholderTextColor="#a09a91"
               keyboardType="phone-pad"
               textAlign="right"
@@ -204,50 +174,14 @@ export default function CreateUserScreen() {
         </View>
       </AppCard>
 
-      <AppCard title="التحقق من الجوال">
-        <View style={styles.otpInfoRow}>
-          <View style={[styles.otpIcon, otpSent && styles.otpIconSuccess]}>
-            <Ionicons name={otpSent ? 'checkmark' : 'chatbubble-ellipses-outline'} size={20} color={otpSent ? colors.success : colors.primary} />
-          </View>
-          <View style={styles.otpTextWrap}>
-            <Text style={styles.otpTitle}>{otpSent ? 'تم إرسال الرمز' : 'أرسل رمز التحقق'}</Text>
-            <Text style={styles.otpText}>سيصل الرمز إلى رقم الجوال، ثم أدخله هنا لإكمال إنشاء المستخدم.</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.secondaryButton, sendingOtp && styles.disabledButton]}
-          activeOpacity={0.88}
-          disabled={sendingOtp || creatingUser}
-          onPress={() => void handleSendOtp()}
-        >
-          {sendingOtp ? <ActivityIndicator size="small" color={colors.text} /> : <Ionicons name="send-outline" size={17} color={colors.text} />}
-          <Text style={styles.secondaryButtonText}>{otpSent ? 'إعادة إرسال الرمز' : 'إرسال رمز التحقق'}</Text>
-        </TouchableOpacity>
-
-        {otpSent ? (
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>رمز التحقق</Text>
-            <TextInput
-              style={[styles.input, styles.otpInput]}
-              value={sanitizedOtp}
-              onChangeText={setOtp}
-              placeholder="000000"
-              placeholderTextColor="#a09a91"
-              keyboardType="number-pad"
-              maxLength={6}
-              textAlign="center"
-            />
-          </View>
-        ) : null}
-      </AppCard>
+      <Text style={styles.helpText}>رقم الجوال اختياري. يمكن للمدير إنشاء المستخدم بدون أي بيانات شخصية غير لازمة.</Text>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <TouchableOpacity
-        style={[styles.primaryButton, (!otpSent || creatingUser) && styles.disabledButton]}
+        style={[styles.primaryButton, creatingUser && styles.disabledButton]}
         activeOpacity={0.9}
-        disabled={!otpSent || creatingUser || sendingOtp}
+        disabled={creatingUser}
         onPress={() => void handleCreateUser()}
       >
         {creatingUser ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="person-add-outline" size={18} color="#fff" />}
@@ -280,59 +214,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
   },
-  otpInput: {
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: 7,
-  },
-  otpInfoRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 12,
-  },
-  otpIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: colors.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  otpIconSuccess: {
-    backgroundColor: colors.successSoft,
-  },
-  otpTextWrap: {
-    flex: 1,
-    alignItems: 'flex-end',
-    gap: 3,
-  },
-  otpTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '900',
-    textAlign: 'right',
-  },
-  otpText: {
+  helpText: {
     color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 19,
-    textAlign: 'right',
-  },
-  secondaryButton: {
-    minHeight: 48,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  secondaryButtonText: {
-    color: colors.text,
     fontSize: 13,
-    fontWeight: '900',
+    lineHeight: 21,
+    textAlign: 'right',
   },
   primaryButton: {
     minHeight: 54,
