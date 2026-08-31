@@ -219,8 +219,8 @@ public function getRemainingAmount(): float
     }
 
     /**
-     * يحسب عدد الأقساط المغطاة فعليًا حسب مجموع المدفوعات، وليس حسب عدد سجلات السداد.
-     * يبقى مفيدًا للإحصائيات العامة، أما حالة كل قسط فتُحسب من دفعة القسط نفسه.
+     * يحسب عدد الأقساط المكتملة من مجموع المبلغ المدفوع فعليًا.
+     * يتم اعتبار المبلغ موزعًا على الأقساط بالترتيب، ولا يُحتسب القسط إلا بعد اكتمال قيمته بالكامل.
      */
     public function getCoveredInstallmentsCount(): int
     {
@@ -293,8 +293,7 @@ public function getRemainingAmount(): float
 
 public function getSummary(): array
     {
-        $schedule = $this->generateSchedule();
-        $paidCount = collect($schedule)->where('is_paid', true)->count();
+        $paidCount = $this->getCoveredInstallmentsCount();
         $monthly = $this->getMonthlyInstallment();
         $bondTotal = $this->getCalculatedBondTotal();
         $totalProfit = $this->getTotalProfit();
