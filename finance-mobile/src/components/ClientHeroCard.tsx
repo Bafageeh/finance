@@ -157,22 +157,28 @@ export function ClientHeroCard({
         </View>
       ) : null}
 
-      <View style={styles.quickActionsRow}>
-        <IconPillButton
-          icon={client.status === 'stuck' ? 'sparkles-outline' : 'pause-circle-outline'}
-          label={client.status === 'stuck' ? 'تنشيط' : 'تعثر'}
-          tone={client.status === 'stuck' ? 'success' : 'default'}
-          onPress={onToggleClient}
-          disabled={disabled}
-        />
-        <IconPillButton
-          icon={client.has_court ? 'shield-checkmark-outline' : 'shield-outline'}
-          label={client.has_court ? 'إزالة قضية' : 'إضافة قضية'}
-          tone={client.has_court ? 'danger' : 'primary'}
-          onPress={onToggleCourt}
-          disabled={disabled}
-        />
-      </View>
+      {client.status === 'stuck' || client.has_court ? (
+        <View style={styles.quickActionsRow}>
+          {client.status === 'stuck' ? (
+            <IconPillButton
+              icon="sparkles-outline"
+              label="تنشيط"
+              tone="success"
+              onPress={onToggleClient}
+              disabled={disabled}
+            />
+          ) : null}
+          {client.has_court ? (
+            <IconPillButton
+              icon="shield-checkmark-outline"
+              label="إزالة قضية"
+              tone="danger"
+              onPress={onToggleCourt}
+              disabled={disabled}
+            />
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
