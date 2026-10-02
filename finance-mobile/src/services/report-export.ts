@@ -107,10 +107,26 @@ async function downloadServerXlsx(report: ReportDocument, endpoint: string): Pro
 }
 
 export async function exportReportPdf(report: ReportDocument): Promise<string> {
-  const { uri } = await Print.printToFileAsync({ html: buildHtml(report), base64: false });
+  // Expo Print creates the PDF in a temporary cache folder. On some Android
+  // environments (notably Expo Go), expo-file-system cannot read that cache
+  // URI back with copyAsync. Requesting the PDF as base64 and writing it
+  // directly into our document directory avoids that cross-module cache issue.
+  const result = await Print.printToFileAsync({
+    html: buildHtml(report),
+    base64: true,
+  });
+
   const target = `${FileSystem.documentDirectory}${safeFilename(report, 'pdf')}`;
 
-  await FileSystem.copyAsync({ from: uri, to: target });
+  if (result.base64) {
+    await FileSystem.writeAsStringAsync(target, result.base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+  } else {
+    // Defensive fallback for runtimes that do not return base64 despite the
+    // option being requested.
+    await FileSystem.copyAsync({ from: result.uri, to: target });
+  }
 
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(target, {
