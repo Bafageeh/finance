@@ -32,6 +32,7 @@ export default function ProtectedLayout() {
       <Stack.Screen name="alerts/[type]" options={{ presentation: 'card' }} />
       <Stack.Screen name="collections/index" options={{ presentation: 'card' }} />
       <Stack.Screen name="stats/details" options={{ presentation: 'card' }} />
+      <Stack.Screen name="stats/capital-report" options={{ presentation: 'card' }} />
       <Stack.Screen name="cases/index" options={{ presentation: 'card' }} />
     </Stack>
   );
