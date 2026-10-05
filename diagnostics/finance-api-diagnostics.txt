@@ -1,7 +1,7 @@
 Pseudo-terminal will not be allocated because stdin is not a terminal.
 Warning: Permanently added '[my.pm.sa]:2222' (ED25519) to the list of known hosts.
 == Finance API diagnostics ==
-Mon Oct  5 09:12:59 +03 2026
+Mon Oct  5 09:13:40 +03 2026
 
 == Current user and paths ==
 pmsa
@@ -64,18 +64,18 @@ no artisan
 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/components/ClientListItem.tsx.bak.hide-done-cards-20260709-155705:108:              <Text style={styles.detailLabel}>رأس المال المتبقي</Text>
 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/components/ClientListItem.tsx.bak.hide-done-detail-cards-20260709-221654:103:              <Text style={styles.detailLabel}>رأس المال المتبقي</Text>
 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/components/ClientListItem.tsx:153:            <Text style={styles.detailLabel} numberOfLines={1}>رأس المال المتبقي</Text>
-/mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/components/ClientListItem.tsx.bak.20260709-125325:105:              <Text style={styles.detailLabel}>رأس المال المتبقي</Text>
 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/components/ClientHeroCard.tsx:117:        <FinancialMetric label="رأس المال المتبقي" value={formatCurrency(remainingFinancedCapital)} tone="warning" />
+/mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/components/ClientListItem.tsx.bak.20260709-125325:105:              <Text style={styles.detailLabel}>رأس المال المتبقي</Text>
 -- recent stats/report-like files --
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/utils/stats.ts
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/utils/reports.ts
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/utils/active-late-clients-report.ts
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/types/report.ts
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/services/report-export.ts
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/screens/ReportsScreen.tsx
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/components/ReportExportCard.tsx
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/app/(protected)/(tabs)/stats.tsx
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/app/(protected)/(tabs)/reports.tsx
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/utils/stats.ts
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/utils/reports.ts
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/utils/active-late-clients-report.ts
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/types/report.ts
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/services/report-export.ts
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/screens/ReportsScreen.tsx
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/components/ReportExportCard.tsx
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/app/(protected)/(tabs)/stats.tsx
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/app/(protected)/(tabs)/reports.tsx
 2026-09-26 18:17 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/app/(protected)/stats/capital-report.tsx
 2026-09-26 18:15 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/types/api.ts.bak-capital-report-20260926
 2026-09-26 18:15 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/services/api.ts.bak-capital-report-20260926
@@ -103,23 +103,1026 @@ no artisan
 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/app/(protected)/partner-clients/[id].tsx:97:                <MetricCard label="رأس المال المتبقي" value={formatCurrency(remainingFinancedCapital)} tone="warning" />
 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/components/ClientListItem.tsx:103:              <Text style={styles.detailLabel}>رأس المال المتبقي</Text>
 -- recent stats/report-like files --
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/utils/stats.ts
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/utils/reports.ts
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/utils/active-late-clients-report.ts
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/types/report.ts
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/services/report-export.ts
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/screens/ReportsScreen.tsx
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/components/ReportExportCard.tsx
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/app/(protected)/(tabs)/stats.tsx
-2026-10-05 09:12 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/app/(protected)/(tabs)/reports.tsx
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/utils/stats.ts
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/utils/reports.ts
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/utils/active-late-clients-report.ts
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/types/report.ts
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/services/report-export.ts
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/screens/ReportsScreen.tsx
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/components/ReportExportCard.tsx
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/app/(protected)/(tabs)/stats.tsx
+2026-10-05 09:13 /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter/src/app/(protected)/(tabs)/reports.tsx
 --- /home/pmsa/apps/finance/finance-mobile
 --- /home/pmsa/apps/finance/finance-mobile-starter
+
+
+== Capital report source recovery ==
+===== FILE: /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/app/(protected)/stats/capital-report.tsx =====
+import { Ionicons } from '@expo/vector-icons';
+import { useIsFocused } from 'expo-router';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { AppCard } from '@/components/AppCard';
+import { IconButton } from '@/components/IconButton';
+import { InsightStatCard } from '@/components/InsightStatCard';
+import { KeyValueRow } from '@/components/KeyValueRow';
+import { LoadingBlock } from '@/components/LoadingBlock';
+import { Screen } from '@/components/Screen';
+import { getCapitalReport } from '@/services/api';
+import { CapitalReportData } from '@/types/api';
+import { formatCurrency, formatDate, formatInteger } from '@/utils/format';
+import { colors } from '@/utils/theme';
+
+export default function CapitalReportScreen() {
+  const isFocused = useIsFocused();
+  const [report, setReport] = useState<CapitalReportData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadReport(silent = false) {
+    try {
+      if (!silent) setLoading(true);
+      setError(null);
+      setReport(await getCapitalReport());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر تحميل تقرير الأرباح ورأس المال.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    if (isFocused) void loadReport();
+  }, [isFocused]);
+
+  return (
+    <Screen
+      title="تقرير الأرباح ورأس المال"
+      subtitle="من أول تمويل وحتى آخر دفعة مسجلة في النظام."
+      scrollable={false}
+      rightSlot={<IconButton icon="arrow-forward" accessibilityLabel="رجوع" onPress={() => router.back()} />}
+    >
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadReport(true); }} />}
+      >
+        {loading ? <LoadingBlock /> : null}
+
+        {!loading && error ? (
+          <AppCard title="تعذر التحميل">
+            <Text style={styles.errorText}>{error}</Text>
+          </AppCard>
+        ) : null}
+
+        {!loading && !error && report ? (
+          <>
+            <AppCard title="النتائج الرئيسية">
+              <InsightStatCard
+                title="ربح أحمد المحقق حتى الآن"
+                value={formatCurrency(report.ahmad_realized_profit)}
+                helper="الجزء المحقق من ربح أحمد بحسب نسبة التحصيل الفعلية من كل عقد."
+                tone="success"
+              />
+              <InsightStatCard
+                title="ربح علي المحقق حتى الآن"
+                value={formatCurrency(report.ali_realized_profit)}
+                helper="حصة علي المحققة من عقود الشراكة فقط."
+                tone="warning"
+              />
+              <InsightStatCard
+                title="رأس المال المتبقي لاسترجاعه"
+                value={formatCurrency(report.remaining_capital)}
+                helper="رأس المال غير المحصل حسب طريقة احتساب التطبيق الحالية."
+                tone="danger"
+              />
+              <InsightStatCard
+                title="المبلغ المتبقي لأحمد ولم يرجع بعد"
+                value={formatCurrency(report.ahmad_outstanding_amount)}
+                helper="إجمالي المتبقي لدى العملاء بعد استبعاد حصة علي الربحية غير المحققة."
+                tone="info"
+              />
+            </AppCard>
+
+            <AppCard title="أرباح أحمد">
+              <KeyValueRow label="إجمالي الربح المتوقع" value={formatCurrency(report.ahmad_total_profit)} />
+              <KeyValueRow label="المحقق حتى الآن" value={formatCurrency(report.ahmad_realized_profit)} />
+              <KeyValueRow label="الربح المتبقي" value={formatCurrency(report.ahmad_remaining_profit)} />
+            </AppCard>
+
+            <AppCard title="أرباح علي">
+              <KeyValueRow label="إجمالي الربح المتوقع" value={formatCurrency(report.ali_total_profit)} />
+              <KeyValueRow label="المحقق حتى الآن" value={formatCurrency(report.ali_realized_profit)} />
+              <KeyValueRow label="الربح المتبقي" value={formatCurrency(report.ali_remaining_profit)} />
+            </AppCard>
+
+            <AppCard title="تفصيل رأس المال والتحصيل">
+              <KeyValueRow label="رأس المال المتبقي — نشط" value={formatCurrency(report.active_remaining_capital)} />
+              <KeyValueRow label="رأس المال المتبقي — متعثر" value={formatCurrency(report.stuck_remaining_capital)} />
+              <KeyValueRow label="إجمالي المتبقي لدى العملاء" value={formatCurrency(report.total_customer_remaining)} />
+              <KeyValueRow label="عدد العقود من البداية" value={formatInteger(report.contracts_count)} />
+            </AppCard>
+
+            <AppCard title="نطاق التقرير">
+              <View style={styles.periodRow}>
+                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+                <Text style={styles.periodText}>
+                  من {formatDate(report.first_contract_date)} حتى {formatDate(report.as_of)}
+                </Text>
+              </View>
+              <Text style={styles.note}>
+                الأرباح المحققة تُحسب بنسبة المبلغ المحصل فعلياً من كل عقد إلى إجمالي قيمة السند، ثم تُوزع حسب نوع التمويل: أحمد 65% وعلي 35% في الشراكة، وأحمد 100% في التمويلات الخاصة به.
+              </Text>
+              <Text style={styles.note}>
+                يتحدث التقرير تلقائياً مع تسجيل أو إلغاء أي دفعة، ويمكن السحب لأسفل لتحديث الأرقام فوراً.
+              </Text>
+            </AppCard>
+          </>
+        ) : null}
+      </ScrollView>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: {
+    paddingBottom: 84,
+  },
+  errorText: {
+    color: colors.danger,
+    textAlign: 'right',
+    lineHeight: 24,
+  },
+  periodRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  periodText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+    textAlign: 'right',
+  },
+  note: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 21,
+    textAlign: 'right',
+  },
+});
+===== FILE: /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/app/(protected)/(tabs)/stats.tsx.bak-capital-report-20260926 =====
+import { useIsFocused } from 'expo-router';
+import { router } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { AppCard } from '@/components/AppCard';
+import { EmptyState } from '@/components/EmptyState';
+import { InsightStatCard } from '@/components/InsightStatCard';
+import { KeyValueRow } from '@/components/KeyValueRow';
+import { LoadingBlock } from '@/components/LoadingBlock';
+import { MetricCard } from '@/components/MetricCard';
+import { Screen } from '@/components/Screen';
+import { SectionHeader } from '@/components/SectionHeader';
+import { getClients, getStats } from '@/services/api';
+import { Client, StatsData } from '@/types/api';
+import { formatCurrency } from '@/utils/format';
+import { buildCaseMetrics, buildStatsOverview } from '@/utils/stats';
+import { colors } from '@/utils/theme';
+import { useSession } from '@/contexts/auth-context';
+
+export default function StatsScreen() {
+  const { session } = useSession();
+  const accountDisplayName = session?.user?.account_name || session?.user?.name || 'الحساب';
+  const isFocused = useIsFocused();
+  const [stats, setStats] = useState<StatsData | null>(null);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function loadData(silent = false) {
+    try {
+      if (!silent) setLoading(true);
+      setError(null);
+      const [statsResponse, clientsResponse] = await Promise.all([getStats(), getClients('all')]);
+      setStats(statsResponse);
+      setClients(clientsResponse);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر تحميل الإحصائيات.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }
+
+  useEffect(() => {
+    if (isFocused) {
+      void loadData();
+    }
+  }, [isFocused]);
+
+  const overview = useMemo(() => (stats ? buildStatsOverview(stats, clients) : null), [stats, clients]);
+  const caseMetrics = useMemo(() => buildCaseMetrics(clients), [clients]);
+  const stuckClients = useMemo(() => clients.filter((client) => client.status === 'stuck'), [clients]);
+
+  return (
+    <Screen title="الإحصائيات" subtitle="لوحة مختصرة للإدارة مع انتقالات مباشرة للتحليل التفصيلي ومركز القضايا." scrollable={false}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadData(true); }} />}
+      >
+        {loading ? <LoadingBlock /> : null}
+
+        {!loading && error ? (
+          <AppCard title="تعذر التحميل">
+            <Text style={styles.errorText}>{error}</Text>
+          </AppCard>
+        ) : null}
+
+        {!loading && !error && stats && overview ? (
+          <>
+            <AppCard title="ملخص عام">
+              <View style={styles.metricGrid}>
+                <MetricCard label="نشطون" value={String(stats.counts.active)} tone="success" />
+                <MetricCard label="متعثرون" value={String(stats.counts.stuck)} tone="danger" />
+                <MetricCard label="قضايا" value={String(stats.counts.court)} tone="info" />
+                <MetricCard label="منتهون" value={String(stats.counts.done)} />
+              </View>
+            </AppCard>
+
+            <AppCard title="مؤشرات الإدارة السريعة">
+              <InsightStatCard
+                title="إجمالي قيمة المحفظة"
+                value={formatCurrency(overview.totalPortfolio)}
+                helper="الدخول إلى شاشة التحليل التفصيلي"
+                tone="info"
+                onPress={() => router.push('/stats/details')}
+              />
+              <InsightStatCard
+                title="إجمالي المتبقي للتحصيل"
+                value={formatCurrency(overview.totalRemaining)}
+                helper={`${overview.overdueContracts} عقود فيها تأخير حالياً`}
+                tone="danger"
+                onPress={() => router.push('/alerts/late')}
+              />
+              <InsightStatCard
+                title="مركز القضايا"
+                value={String(caseMetrics.totalCount)}
+                helper={`${caseMetrics.overdueCount} قضايا متأخرة و${caseMetrics.withoutNotes} بدون ملاحظات`}
+                tone="court"
+                onPress={() => router.push('/cases')}
+              />
+            </AppCard>
+
+            <AppCard title="الدفعات الشهرية — النشطون فقط">
+              <View style={styles.metricGrid}>
+                <MetricCard label="مجموع الدفعات" value={formatCurrency(stats.monthly_income)} tone="info" />
+                <MetricCard label="مجموع الأرباح" value={formatCurrency(stats.monthly_profit)} tone="success" />
+                <MetricCard label="ربح أحمد الشهري" value={formatCurrency(stats.ahmad_monthly)} tone="success" />
+                <MetricCard label="ربح علي الشهري" value={formatCurrency(stats.ali_monthly)} tone="warning" />
+              </View>
+            </AppCard>
+
+            <AppCard title="الزكاة والصدقة — ما عدا المتعثرين">
+              <View style={styles.metricGrid}>
+                <MetricCard label="وعاء الزكاة" value={formatCurrency(stats.zakat_base)} />
+                <MetricCard label="الزكاة 2.5%" value={formatCurrency(stats.zakat)} tone="success" />
+                <MetricCard label="الصدقة 1%" value={formatCurrency(stats.sadaqa)} tone="info" />
+                <MetricCard label="المجموع" value={formatCurrency(stats.zakat + stats.sadaqa)} tone="warning" />
+              </View>
+              <Text style={styles.footnote}>المتعثرون ({stats.counts.stuck}) مستثنون من حساب الزكاة والصدقة.</Text>
+            </AppCard>
+
+            <AppCard title="إحصاءات المتعثرين">
+              <KeyValueRow label="عدد المتعثرين" value={String(stats.stuck.count)} />
+              <KeyValueRow label="إجمالي المبالغ المتبقية" value={formatCurrency(stats.stuck.total_remaining)} />
+              <KeyValueRow label="إجمالي رأس المال" value={formatCurrency(stats.stuck.total_principal)} />
+              <KeyValueRow label="رأس المال غير المحصل" value={formatCurrency(stats.stuck.remaining_principal)} />
+
+              <SectionHeader title="الحالات المتعثرة" subtitle="فتح العميل مباشرة لمراجعة الأقساط أو التحويل القضائي." actionLabel="التحليل التفصيلي" onActionPress={() => router.push('/stats/details')} />
+              {stuckClients.length ? (
+                <View style={styles.stuckList}>
+                  {stuckClients.slice(0, 5).map((client) => (
+                    <TouchableOpacity key={client.id} style={styles.stuckRow} onPress={() => router.push(`/clients/${client.id}`)}>
+                      <View style={styles.stuckTextWrap}>
+                        <Text style={styles.stuckName}>{client.name}</Text>
+                        <Text style={styles.stuckMeta}>
+                          {client.summary.paid_count}/{client.months} شهر · متبقٍ {formatCurrency(client.summary.remaining_amount)}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : (
+                <EmptyState title="لا يوجد عملاء متعثرون" description="عند تفعيل حالة التعثر على أي عميل سيظهر هنا تلقائياً." />
+              )}
+            </AppCard>
+          </>
+        ) : null}
+      </ScrollView>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  content: {
+    paddingBottom: 80,
+  },
+  metricGrid: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  footnote: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'right',
+    lineHeight: 20,
+  },
+  stuckList: {
+    marginTop: 8,
+    gap: 8,
+  },
+  stuckRow: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 10,
+  },
+  stuckTextWrap: {
+    gap: 4,
+  },
+  stuckName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: colors.text,
+    textAlign: 'right',
+  },
+  stuckMeta: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'right',
+  },
+  errorText: {
+    color: colors.danger,
+    textAlign: 'right',
+    lineHeight: 24,
+  },
+});
+===== FILE: /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/services/api.ts.bak-capital-report-20260926 =====
+import { formatDateDDMMYYYY } from '@/utils/format';
+import {
+  ApiEnvelope,
+  Client,
+  ClientFilter,
+  CreateClientPayload,
+  RecordPaymentPayload,
+  StatsData,
+  UpdateClientPayload,
+} from '@/types/api';
+import { AuthSession, AuthUser, LoginPayload } from '@/types/auth';
+import {
+  createMockClient,
+  deleteMockClient,
+  getMockClient,
+  getMockClients,
+  getMockProfile,
+  getMockStats,
+  loginMock,
+  recordMockPayment,
+  removeMockPayment,
+  updateMockClient,
+} from '@/services/mock-data';
+
+export interface AdminAccountUser {
+  id: number | string;
+  name: string;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role?: string | null;
+  created_at?: string | null;
+}
+
+export interface AdminAccountSummary {
+  id: number | string;
+  name: string;
+  slug?: string | null;
+  status?: string | null;
+  users_count: number;
+  clients_count: number;
+  users: AdminAccountUser[];
+}
+
+export interface CreateUserOtpPayload {
+  phone?: string;
+  username?: string;
+}
+
+export interface CreateUserWithOtpPayload {
+  name: string;
+  username: string;
+  phone?: string;
+  email?: string;
+  password: string;
+  password_confirmation: string;
+  otp?: string;
+  account_id?: number | string | null;
+}
+
+export interface CreatedUserSummary {
+  id: number | string;
+  name: string;
+  username?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  role?: string | null;
+}
+
+function resolveApiBase(): string {
+  return (
+    process.env.EXPO_PUBLIC_API_BASE_URL
+    || process.env.EXPO_PUBLIC_API_URL
+    || 'https://finance.pm.sa/api/v1'
+  );
+}
+
+const API_BASE = resolveApiBase().replace(/\/$/, '');
+const MOCK_FLAG = process.env.EXPO_PUBLIC_USE_MOCKS === 'true';
+const HAS_REAL_API_BASE = /^https?:\/\//i.test(API_BASE) && !/(example\.com|127\.0\.0\.1|localhost)/i.test(API_BASE);
+const USE_MOCKS = MOCK_FLAG && !HAS_REAL_API_BASE;
+
+let authToken: string | null = null;
+
+export class ApiRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.status = status;
+  }
+}
+
+function buildHeaders(init?: RequestInit): HeadersInit {
+  return {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+    ...(init?.headers || {}),
+  };
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: buildHeaders(init),
+  });
+
+  const payload = (await response.json().catch(() => ({}))) as { message?: string } & T;
+
+  if (!response.ok) {
+    const message = payload.message || (response.status === 401
+      ? 'انتهت جلسة الدخول أو يلزم تسجيل الدخول مرة أخرى.'
+      : 'تعذر تنفيذ الطلب.');
+    throw new ApiRequestError(message, response.status);
+  }
+
+  return payload;
+}
+
+async function requestOptional<T>(paths: string[], init?: RequestInit): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (const path of paths) {
+    try {
+      return await request<T>(path, init);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'تعذر تنفيذ الطلب.';
+      if (error instanceof ApiRequestError && error.status === 404) {
+        lastError = new Error(message);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw lastError || new Error('تعذر العثور على المسار المناسب للمصادقة.');
+}
+
+function pickEnvelopeData<T>(raw: any): T {
+  return (raw?.data ?? raw) as T;
+}
+
+function normalizeClientCapital(client: Client): Client {
+  if (!client?.summary) {
+    return client;
+  }
+
+  const remainingPrincipal = Number(client.summary.remaining_principal);
+  const paidAmount = Number(client.summary.paid_amount);
+
+  if (!Number.isFinite(remainingPrincipal) || !Number.isFinite(paidAmount)) {
+    return client;
+  }
+
+  return {
+    ...client,
+    summary: {
+      ...client.summary,
+      financed_amount: remainingPrincipal + paidAmount,
+    },
+  };
+}
+
+function normalizeClientList(clients: Client[]): Client[] {
+  return clients.map((client) => normalizeClientCapital(client));
+}
+
+function pickUser(raw: any): AuthUser {
+  const source = raw?.user || raw?.data?.user || raw?.data || raw || {};
+  return {
+    id: source.id ?? source.user_id ?? 1,
+    account_id: source.account_id ?? null,
+    account_name: source.account_name ?? null,
+    account_slug: source.account_slug ?? null,
+    name: source.name ?? source.full_name ?? source.username ?? 'مستخدم النظام',
+    username: source.username ?? null,
+    email: source.email ?? null,
+    phone: source.phone ?? null,
+    role: source.role ?? null,
+  };
+}
+
+function pickToken(raw: any): string {
+  return raw?.token || raw?.access_token || raw?.data?.token || raw?.data?.access_token || '';
+}
+
+function normalizeAuthSession(raw: any): AuthSession {
+  const token = pickToken(raw);
+  if (!token) {
+    throw new Error('لم يتم العثور على رمز دخول صالح من الخادم.');
+  }
+
+  return {
+    token,
+    user: pickUser(raw),
+    issued_at: new Date().toISOString(),
+  };
+}
+
+export function setApiToken(token: string | null | undefined): void {
+  authToken = token || null;
+}
+
+export async function signIn(payload: LoginPayload): Promise<AuthSession> {
+  if (USE_MOCKS) {
+    const session = loginMock(payload);
+    setApiToken(session.token);
+    return session;
+  }
+
+  const response = await requestOptional<any>(['/auth/login', '/login'], {
+    method: 'POST',
+    body: JSON.stringify({
+      login: payload.login,
+      email: payload.login,
+      username: payload.login,
+      password: payload.password,
+    }),
+  });
+
+  const session = normalizeAuthSession(response);
+  setApiToken(session.token);
+  return session;
+}
+
+export async function getProfile(): Promise<AuthUser> {
+  if (USE_MOCKS) {
+    return getMockProfile();
+  }
+
+  const response = await requestOptional<any>(['/auth/me', '/me', '/user']);
+  return pickUser(response);
+}
+
+export async function signOutRemote(): Promise<void> {
+  if (USE_MOCKS) return;
+
+  try {
+    await requestOptional<any>(['/auth/logout', '/logout'], {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  } catch {
+    // intentionally ignore logout endpoint mismatches for now
+  } finally {
+    setApiToken(null);
+  }
+}
+
+export async function changePassword(payload: {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
+}): Promise<void> {
+  if (USE_MOCKS) return;
+
+  await requestOptional<any>(['/auth/change-password', '/auth/password', '/password/change'], {
+    method: 'POST',
+    body: JSON.stringify({
+      current_password: payload.current_password,
+      password: payload.password,
+      password_confirmation: payload.password_confirmation,
+      new_password: payload.password,
+      new_password_confirmation: payload.password_confirmation,
+    }),
+  });
+}
+
+export async function deleteAccountRemote(): Promise<void> {
+  if (USE_MOCKS) return;
+
+  await requestOptional<any>(['/auth/account', '/account', '/user'], {
+    method: 'DELETE',
+  });
+  setApiToken(null);
+}
+
+export async function getAdminAccounts(): Promise<AdminAccountSummary[]> {
+  if (USE_MOCKS) return [];
+
+  const response = await request<ApiEnvelope<AdminAccountSummary[]> | AdminAccountSummary[]>(`/admin/account-list?t=${Date.now()}`, {
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+  });
+  return pickEnvelopeData<AdminAccountSummary[]>(response);
+}
+
+export async function updateAdminAccount(id: number | string, payload: {
+  name: string;
+  slug?: string | null;
+  status?: string | null;
+}): Promise<AdminAccountSummary> {
+  if (USE_MOCKS) {
+    return {
+      id,
+      name: payload.name,
+      slug: payload.slug ?? null,
+      status: payload.status ?? 'active',
+      users_count: 0,
+      clients_count: 0,
+      users: [],
+    };
+  }
+
+  const response = await request<ApiEnvelope<AdminAccountSummary> | AdminAccountSummary>(`/admin/accounts/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+
+  return pickEnvelopeData<AdminAccountSummary>(response);
+}
+
+export async function updateAdminUserPassword(id: number | string, payload: {
+  password: string;
+  password_confirmation: string;
+}): Promise<void> {
+  if (USE_MOCKS) return;
+
+  await request(`/admin/users/${id}/password`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function requestCreateUserOtp(payload: CreateUserOtpPayload): Promise<void> {
+  if (USE_MOCKS) return;
+
+  await request('/admin/users/otp/request', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyCreateUserOtp(payload: CreateUserWithOtpPayload): Promise<CreatedUserSummary> {
+  if (USE_MOCKS) {
+    return {
+      id: Date.now(),
+      name: payload.name,
+      username: payload.username,
+      phone: payload.phone || null,
+      role: 'user',
+    };
+  }
+
+  const response = await request<ApiEnvelope<CreatedUserSummary> | CreatedUserSummary>('/admin/users/create', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+  return pickEnvelopeData<CreatedUserSummary>(response);
+}
+
+export async function getClients(status: ClientFilter = 'all'): Promise<Client[]> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client[]> | Client[]>(`/clients?status=${status}`);
+    return normalizeClientList(pickEnvelopeData<Client[]>(response));
+  }
+
+  return normalizeClientList(getMockClients(status === 'late' ? 'all' : status));
+}
+
+export async function getPartnerClients(): Promise<Client[]> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client[]> | Client[]>('/partner-clients');
+    return normalizeClientList(pickEnvelopeData<Client[]>(response));
+  }
+
+  return normalizeClientList(getMockClients('all').filter((client) => client.profit_share === 'shared'));
+}
+
+export async function getPartnerClient(id: number | string): Promise<Client> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client> | Client>(`/partner-clients/${id}`);
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
+  }
+
+  return normalizeClientCapital(getMockClient(id));
+}
+
+export async function getClient(id: number | string): Promise<Client> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client> | Client>(`/clients/${id}`);
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
+  }
+
+  return normalizeClientCapital(getMockClient(id));
+}
+
+export async function createClient(payload: CreateClientPayload): Promise<Client> {
+  if (!USE_MOCKS) {
+    const safePayload = {
+      ...payload,
+      confirm_insert_only: true,
+    };
+
+    const response = await request<ApiEnvelope<Client> | Client>('/clients/safe-import', {
+      method: 'POST',
+      body: JSON.stringify(safePayload),
+    });
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
+  }
+
+  return normalizeClientCapital(createMockClient(payload));
+}
+
+export async function updateClient(id: number | string, payload: UpdateClientPayload): Promise<Client> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<Client> | Client>(`/clients/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    return normalizeClientCapital(pickEnvelopeData<Client>(response));
+  }
+
+  return normalizeClientCapital(updateMockClient(id, payload));
+}
+===== FILE: /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/types/api.ts.bak-capital-report-20260926 =====
+import { formatDateDDMMYYYY } from '@/utils/format';
+import * as React from 'react';
+export type ClientStatus = 'active' | 'stuck' | 'done';
+export type ClientFilter = 'all' | ClientStatus | 'court' | 'late';
+export type ProfitShare = 'shared' | 'ahmad_only';
+export type PaymentStatus = 'paid' | 'partial' | 'unpaid';
+
+export interface PaymentScheduleItem {
+  month: number;
+  due_date: string;
+  period_key: string;
+  amount: number;
+  installment_amount?: number | null;
+  is_paid: boolean;
+  payment_status?: PaymentStatus | string | null;
+  paid_amount?: number | null;
+  recorded_paid_amount?: number | null;
+  covered_amount?: number | null;
+  remaining_due?: number | null;
+  bank_note?: string | null;
+  paid_date?: string | null;
+  payment_id?: number | null;
+  direct_payment_id?: number | null;
+  allocation_payment_id?: number | null;
+  can_cancel_payment?: boolean | null;
+}
+
+export interface ClientSummary {
+  monthly_installment: number;
+  bond_total: number;
+  financed_amount: number;
+  purchase_cost?: number;
+  original_amount?: number;
+  bond_cost_value?: number;
+  ali_profit_component?: number;
+  full_financed_amount?: number;
+  total_profit: number;
+  monthly_profit: number;
+  effective_rate: number;
+  total_rate: number;
+  paid_count: number;
+  remaining_months: number;
+  paid_amount: number;
+  remaining_amount: number;
+  remaining_principal: number;
+  profit_share: ProfitShare;
+  ahmad_pct: number;
+  ali_pct: number;
+  ahmad_total: number;
+  ahmad_monthly: number;
+  ali_total: number;
+  ali_monthly: number;
+  progress_percent: number;
+}
+
+export interface Client {
+  id: number;
+  name: string;
+  id_number?: string | null;
+  phone?: string | null;
+  asset?: string | null;
+  contract_date: string;
+  first_installment_date?: string | null;
+  cost: number;
+  principal: number;
+  rate: number;
+  months: number;
+  bond_cost?: number | null;
+  bond_total?: number | null;
+  profit_share?: ProfitShare | null;
+  status: ClientStatus;
+  has_court: boolean;
+  court_note?: string | null;
+  notes?: string | null;
+  summary: ClientSummary;
+  schedule?: PaymentScheduleItem[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StatsCounts {
+  active: number;
+  stuck: number;
+  done: number;
+  court: number;
+  total: number;
+}
+
+export interface StatsAlertLate {
+  id: number;
+  name: string;
+  id_number?: string | null;
+  overdue_count: number;
+  overdue_amount: number;
+}
+
+export interface StatsAlertWarn {
+  id: number;
+  name: string;
+  days_left: number;
+  next_due: string;
+  amount: number;
+}
+
+export interface StatsStuck {
+  count: number;
+  total_remaining: number;
+  total_principal: number;
+  remaining_principal: number;
+}
+
+export interface StatsData {
+  counts: StatsCounts;
+  monthly_income: number;
+  monthly_profit: number;
+  ahmad_total: number;
+  ahmad_monthly: number;
+  ali_monthly: number;
+  zakat_base: number;
+  zakat: number;
+  sadaqa: number;
+  stuck: StatsStuck;
+  alerts: {
+    late: StatsAlertLate[];
+    warn: StatsAlertWarn[];
+  };
+}
+
+export interface CreateClientPayload {
+  name: string;
+  id_number?: string;
+  phone?: string;
+  asset?: string;
+  contract_date: string;
+  cost: number;
+  principal: number;
+  rate: number;
+  months: number;
+  bond_cost?: number;
+  bond_total?: number | null;
+  profit_share?: ProfitShare;
+  notes?: string;
+}
+
+export interface UpdateClientPayload {
+  name?: string;
+  id_number?: string;
+  phone?: string;
+  asset?: string;
+  contract_date?: string;
+  cost?: number;
+  principal?: number;
+  rate?: number;
+  months?: number;
+  bond_cost?: number;
+  bond_total?: number | null;
+  profit_share?: ProfitShare;
+  status?: ClientStatus;
+  has_court?: boolean;
+  court_note?: string;
+  notes?: string;
+}
+
+export interface RecordPaymentPayload {
+  period_key: string;
+  paid_amount?: number | null;
+  bank_note?: string | null;
+}
+
+export interface ApiEnvelope<T> {
+  data: T;
+  message?: string;
+}
+===== FILE: /mnt/home-storage/home/pmsa/apps/finance/finance-mobile/src/app/(protected)/_layout.tsx.bak-capital-report-20260926 =====
+import { Redirect, Stack } from 'expo-router';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useSession } from '@/contexts/auth-context';
+import { colors } from '@/utils/theme';
+
+export default function ProtectedLayout() {
+  const { isLoading, isAuthenticated } = useSession();
+
+  if (isLoading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Redirect href="/sign-in" />;
+  }
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="clients/[id]" options={{ presentation: 'card' }} />
+      <Stack.Screen name="clients/form" options={{ presentation: 'card' }} />
+      <Stack.Screen name="account/create-user" options={{ presentation: 'card' }} />
+      <Stack.Screen name="alerts/[type]" options={{ presentation: 'card' }} />
+      <Stack.Screen name="collections/index" options={{ presentation: 'card' }} />
+      <Stack.Screen name="stats/details" options={{ presentation: 'card' }} />
+      <Stack.Screen name="cases/index" options={{ presentation: 'card' }} />
+    </Stack>
+  );
+}
+
+const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+});
+
+== Backend capital report references ==
 
 
 == HTTP tests ==
 --- POST https://my.pm.sa/api/v1/auth/login
 HTTP/1.1 404 Not Found
-Date: Mon, 05 Oct 2026 06:13:00 GMT
+Date: Mon, 05 Oct 2026 06:13:41 GMT
 Server: Apache
 Content-Length: 355
 Content-Type: text/html; charset=iso-8859-1
@@ -136,7 +1139,7 @@ error was encountered while trying to use an ErrorDocument to handle the request
 
 --- POST https://my.pm.sa/api/v1/login
 HTTP/1.1 404 Not Found
-Date: Mon, 05 Oct 2026 06:13:00 GMT
+Date: Mon, 05 Oct 2026 06:13:41 GMT
 Server: Apache
 Content-Length: 355
 Content-Type: text/html; charset=iso-8859-1
@@ -153,7 +1156,7 @@ error was encountered while trying to use an ErrorDocument to handle the request
 
 --- GET https://my.pm.sa/up
 HTTP/1.1 404 Not Found
-Date: Mon, 05 Oct 2026 06:13:00 GMT
+Date: Mon, 05 Oct 2026 06:13:41 GMT
 Server: Apache
 Content-Length: 355
 Content-Type: text/html; charset=iso-8859-1
@@ -170,7 +1173,7 @@ error was encountered while trying to use an ErrorDocument to handle the request
 
 --- GET https://my.pm.sa/api/up
 HTTP/1.1 404 Not Found
-Date: Mon, 05 Oct 2026 06:13:00 GMT
+Date: Mon, 05 Oct 2026 06:13:41 GMT
 Server: Apache
 Content-Length: 355
 Content-Type: text/html; charset=iso-8859-1
