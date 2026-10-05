@@ -1,6 +1,7 @@
 import { formatDateDDMMYYYY } from '@/utils/format';
 import {
   ApiEnvelope,
+  CapitalReportData,
   Client,
   ClientFilter,
   CreateClientPayload,
@@ -435,6 +436,66 @@ export async function getStats(): Promise<StatsData> {
   }
 
   return getMockStats();
+}
+
+function buildMockCapitalReport(): CapitalReportData {
+  const clients = normalizeClientList(getMockClients('all'));
+  let ahmadTotalProfit = 0;
+  let ahmadRealizedProfit = 0;
+  let aliTotalProfit = 0;
+  let aliRealizedProfit = 0;
+  let activeRemainingCapital = 0;
+  let stuckRemainingCapital = 0;
+  let totalCustomerRemaining = 0;
+
+  for (const client of clients) {
+    const bondTotal = Math.max(0, Number(client.summary?.bond_total || 0));
+    const paidAmount = Math.max(0, Number(client.summary?.paid_amount || 0));
+    const collectionRatio = bondTotal > 0 ? Math.min(1, Math.max(0, paidAmount / bondTotal)) : 0;
+    const ahmadProfit = Math.max(0, Number(client.summary?.ahmad_total || 0));
+    const aliProfit = Math.max(0, Number(client.summary?.ali_total || 0));
+
+    ahmadTotalProfit += ahmadProfit;
+    aliTotalProfit += aliProfit;
+    ahmadRealizedProfit += ahmadProfit * collectionRatio;
+    aliRealizedProfit += aliProfit * collectionRatio;
+
+    const remainingCapital = Math.max(0, Number(client.summary?.remaining_principal || 0));
+    if (client.status === 'active') activeRemainingCapital += remainingCapital;
+    if (client.status === 'stuck') stuckRemainingCapital += remainingCapital;
+
+    totalCustomerRemaining += Math.max(0, Number(client.summary?.remaining_amount || 0));
+  }
+
+  const ahmadRemainingProfit = Math.max(0, ahmadTotalProfit - ahmadRealizedProfit);
+  const aliRemainingProfit = Math.max(0, aliTotalProfit - aliRealizedProfit);
+  const dates = clients.map((client) => client.contract_date).filter(Boolean).sort();
+
+  return {
+    as_of: new Date().toISOString().slice(0, 10),
+    first_contract_date: dates[0] || null,
+    contracts_count: clients.length,
+    total_customer_remaining: totalCustomerRemaining,
+    remaining_capital: activeRemainingCapital + stuckRemainingCapital,
+    active_remaining_capital: activeRemainingCapital,
+    stuck_remaining_capital: stuckRemainingCapital,
+    ahmad_total_profit: ahmadTotalProfit,
+    ahmad_realized_profit: ahmadRealizedProfit,
+    ahmad_remaining_profit: ahmadRemainingProfit,
+    ali_total_profit: aliTotalProfit,
+    ali_realized_profit: aliRealizedProfit,
+    ali_remaining_profit: aliRemainingProfit,
+    ahmad_outstanding_amount: Math.max(0, totalCustomerRemaining - aliRemainingProfit),
+  };
+}
+
+export async function getCapitalReport(): Promise<CapitalReportData> {
+  if (!USE_MOCKS) {
+    const response = await request<ApiEnvelope<CapitalReportData> | CapitalReportData>('/stats/capital-report');
+    return pickEnvelopeData<CapitalReportData>(response);
+  }
+
+  return buildMockCapitalReport();
 }
 
 export async function recordPayment(id: number | string, payload: RecordPaymentPayload): Promise<void> {
