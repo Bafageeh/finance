@@ -93,3 +93,5 @@ jobs:
           echo "Expo is running on port 8081 with PID $EXPO_PID"
           tail -n 80 "$LOG_FILE" || true
           REMOTE
+
+# restart trigger after completed deployment: 2026-10-05 09:27 +03
