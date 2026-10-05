@@ -98,50 +98,6 @@ jobs:
             fi
           done
           echo
-          echo "== Recover recent Finance profit/capital report =="
-          for dir in \
-            /mnt/home-storage/home/pmsa/apps/finance/finance-mobile \
-            /mnt/home-storage/home/pmsa/apps/finance/finance-mobile-starter \
-            /home/pmsa/apps/finance/finance-mobile \
-            /home/pmsa/apps/finance/finance-mobile-starter; do
-            echo "--- $dir"
-            if [ -d "$dir" ]; then
-              find "$dir" -maxdepth 8 -type f \( -name '*.tsx' -o -name '*.ts' -o -name '*.php' -o -name '*.bak*' -o -name '*backup*' \) \
-                -not -path '*/node_modules/*' -print0 2>/dev/null \
-                | xargs -0 grep -nE 'تقرير الأرباح ورأس المال|ربح أحمد المحقق|ربح علي المحقق|المبلغ المتبقي لأحمد|رأس المال المتبقي|إجمالي أرباح أحمد المتوقعة|إجمالي حصة علي المتوقعة' 2>/dev/null \
-                | head -200 || true
-              echo "-- recent stats/report-like files --"
-              find "$dir" -maxdepth 8 -type f \( -iname '*stats*' -o -iname '*report*' -o -iname '*.bak*' \) \
-                -not -path '*/node_modules/*' -printf '%TY-%Tm-%Td %TH:%TM %p\n' 2>/dev/null \
-                | sort -r | head -120 || true
-            fi
-          done
-          echo
-          echo
-          echo "== Capital report source recovery =="
-          MOBILE="/mnt/home-storage/home/pmsa/apps/finance/finance-mobile"
-          for file in \
-            "$MOBILE/src/app/(protected)/stats/capital-report.tsx" \
-            "$MOBILE/src/app/(protected)/(tabs)/stats.tsx.bak-capital-report-20260926" \
-            "$MOBILE/src/services/api.ts.bak-capital-report-20260926" \
-            "$MOBILE/src/types/api.ts.bak-capital-report-20260926" \
-            "$MOBILE/src/app/(protected)/_layout.tsx.bak-capital-report-20260926"; do
-            echo "===== FILE: $file ====="
-            if [ -f "$file" ]; then
-              sed -n '1,420p' "$file"
-            else
-              echo "missing"
-            fi
-          done
-          echo
-          echo "== Backend capital report references =="
-          API="/mnt/home-storage/home/pmsa/apps/finance/finance-api"
-          if [ -d "$API" ]; then
-            grep -R -nE 'capital.report|capital_report|CapitalReport|realized_ahmad|remaining_for_ahmad|active_remaining_capital|stuck_remaining_capital' \
-              "$API/app" "$API/routes" 2>/dev/null | head -300 || true
-          fi
-          echo
-          echo
           echo "== HTTP tests =="
           echo "--- POST https://my.pm.sa/api/v1/auth/login"
           curl -k -i -s -X POST 'https://my.pm.sa/api/v1/auth/login' \
