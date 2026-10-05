@@ -118,6 +118,30 @@ jobs:
           done
           echo
           echo
+          echo "== Capital report source recovery =="
+          MOBILE="/mnt/home-storage/home/pmsa/apps/finance/finance-mobile"
+          for file in \
+            "$MOBILE/src/app/(protected)/stats/capital-report.tsx" \
+            "$MOBILE/src/app/(protected)/(tabs)/stats.tsx.bak-capital-report-20260926" \
+            "$MOBILE/src/services/api.ts.bak-capital-report-20260926" \
+            "$MOBILE/src/types/api.ts.bak-capital-report-20260926" \
+            "$MOBILE/src/app/(protected)/_layout.tsx.bak-capital-report-20260926"; do
+            echo "===== FILE: $file ====="
+            if [ -f "$file" ]; then
+              sed -n '1,420p' "$file"
+            else
+              echo "missing"
+            fi
+          done
+          echo
+          echo "== Backend capital report references =="
+          API="/mnt/home-storage/home/pmsa/apps/finance/finance-api"
+          if [ -d "$API" ]; then
+            grep -R -nE 'capital.report|capital_report|CapitalReport|realized_ahmad|remaining_for_ahmad|active_remaining_capital|stuck_remaining_capital' \
+              "$API/app" "$API/routes" 2>/dev/null | head -300 || true
+          fi
+          echo
+          echo
           echo "== HTTP tests =="
           echo "--- POST https://my.pm.sa/api/v1/auth/login"
           curl -k -i -s -X POST 'https://my.pm.sa/api/v1/auth/login' \
