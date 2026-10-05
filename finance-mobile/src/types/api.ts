@@ -126,6 +126,23 @@ export interface StatsData {
   };
 }
 
+export interface CapitalReportData {
+  as_of: string;
+  first_contract_date: string | null;
+  contracts_count: number;
+  total_customer_remaining: number;
+  remaining_capital: number;
+  active_remaining_capital: number;
+  stuck_remaining_capital: number;
+  ahmad_total_profit: number;
+  ahmad_realized_profit: number;
+  ahmad_remaining_profit: number;
+  ali_total_profit: number;
+  ali_realized_profit: number;
+  ali_remaining_profit: number;
+  ahmad_outstanding_amount: number;
+}
+
 export interface CreateClientPayload {
   name: string;
   id_number?: string;
