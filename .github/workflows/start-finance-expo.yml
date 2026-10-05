@@ -93,5 +93,3 @@ jobs:
           echo "Expo is running on port 8081 with PID $EXPO_PID"
           tail -n 80 "$LOG_FILE" || true
           REMOTE
-
-# manual trigger: 2026-10-05 08:54 +03
