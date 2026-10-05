@@ -48,6 +48,7 @@ Route::prefix('v1')->group(function () {
         Route::get('admin/account-list', [AuthController::class, 'accounts'])->middleware('throttle:20,1');
 
         Route::get('stats', [AccountStatsController::class, 'index']);
+        Route::get('stats/capital-report', [AccountStatsController::class, 'capitalReport']);
         Route::get('partner-clients', [PartnerClientController::class, 'index']);
         Route::get('partner-clients/{client}', [PartnerClientController::class, 'show']);
         Route::post('clients/safe-import', [SafeClientImportController::class, 'store']);
