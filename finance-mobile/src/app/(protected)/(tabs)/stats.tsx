@@ -93,6 +93,13 @@ export default function StatsScreen() {
                 onPress={() => router.push('/alerts/late')}
               />
               <InsightStatCard
+                title="تقرير الأرباح ورأس المال"
+                value="فتح التقرير"
+                helper="من أول تمويل: الأرباح المحققة والمتبقية، رأس المال المتبقي، وإجمالي المتبقي لدى العملاء."
+                tone="success"
+                onPress={() => router.push('/stats/capital-report')}
+              />
+              <InsightStatCard
                 title="مركز القضايا"
                 value={String(caseMetrics.totalCount)}
                 helper={`${caseMetrics.overdueCount} قضايا متأخرة و${caseMetrics.withoutNotes} بدون ملاحظات`}
