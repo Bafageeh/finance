@@ -1,7 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router, useIsFocused } from 'expo-router';
+import { useIsFocused } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppCard } from '@/components/AppCard';
 import { EmptyState } from '@/components/EmptyState';
 import { LoadingBlock } from '@/components/LoadingBlock';
@@ -100,26 +99,12 @@ export default function ReportsScreen() {
   }
 
   return (
-    <Screen title="التقارير" subtitle="تقارير الأرباح ورأس المال والعملاء والتحصيل" compactHeader scrollable={false}>
+    <Screen title="التقارير" subtitle="تقارير العملاء والمحفظة والتحصيل" compactHeader scrollable={false}>
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadData(true); }} />}
         showsVerticalScrollIndicator={false}
       >
-        <AppCard title="تقرير الأرباح ورأس المال">
-          <Text style={styles.description}>الأرباح المحققة والمتبقية لأحمد وعلي، رأس المال غير المحصل، وإجمالي المتبقي لدى العملاء من أول تمويل.</Text>
-          <TouchableOpacity
-            style={styles.openButton}
-            onPress={() => router.push('/reports/capital-report')}
-            accessibilityRole="button"
-            activeOpacity={0.88}
-          >
-            <Ionicons name="document-text-outline" size={18} color="#fff" />
-            <Text style={styles.openButtonText}>فتح التقرير</Text>
-            <Ionicons name="chevron-back" size={16} color="#fff" />
-          </TouchableOpacity>
-        </AppCard>
-
         {loading ? <LoadingBlock /> : null}
         {!loading && error ? (
           <AppCard title="تعذر تحميل التقارير"><Text style={styles.errorText}>{error}</Text></AppCard>
@@ -148,8 +133,5 @@ export default function ReportsScreen() {
 const styles = StyleSheet.create({
   content: { paddingBottom: 90, gap: 12 },
   group: { gap: 10 },
-  description: { fontSize: 13, lineHeight: 22, color: colors.textMuted, textAlign: 'right' },
-  openButton: { minHeight: 44, borderRadius: 14, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row-reverse', gap: 8, paddingHorizontal: 16 },
-  openButtonText: { color: '#fff', fontSize: 13, fontWeight: '800' },
   errorText: { color: colors.danger, textAlign: 'right', lineHeight: 24 },
 });

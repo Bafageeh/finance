@@ -4,6 +4,7 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } 
 import { AlertSummaryTile } from '@/components/AlertSummaryTile';
 import { AppCard } from '@/components/AppCard';
 import { CollectionPreviewRow } from '@/components/CollectionPreviewRow';
+import { CapitalStatsSection } from '@/components/CapitalStatsSection';
 import { EmptyState } from '@/components/EmptyState';
 import { KeyValueRow } from '@/components/KeyValueRow';
 import { LoadingBlock } from '@/components/LoadingBlock';
@@ -38,6 +39,7 @@ export default function StatsScreen() {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [clientFilters, setClientFilters] = useState<SelectedFilter[]>([]);
+  const [capitalRefreshKey, setCapitalRefreshKey] = useState(0);
   const [followUps, setFollowUps] = useState<Record<number, FollowUpSummary>>({});
   const [assistantLoading, setAssistantLoading] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -51,6 +53,7 @@ export default function StatsScreen() {
       const [statsResponse, clientsResponse] = await Promise.all([getStats(), getClients('all')]);
       setStats(statsResponse);
       setClients(clientsResponse);
+      setCapitalRefreshKey((current) => current + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر تحميل الإحصائيات.');
     } finally {
@@ -76,11 +79,6 @@ export default function StatsScreen() {
 
   const overview = useMemo(() => stats ? buildStatsOverview(stats, clients) : null, [stats, clients]);
   const counts = useMemo(() => buildClientCounts(clients), [clients]);
-  const remainingCapital = useMemo(() => clients.reduce((sum, client) => {
-    const financed = Number(client.summary?.financed_amount || 0);
-    const paid = Number(client.summary?.paid_amount || 0);
-    return sum + Math.max(0, financed - paid);
-  }, 0), [clients]);
   const assistantBoard = useMemo(() => buildCollectionAssistantBoard(clients, followUps), [clients, followUps]);
   const filteredClients = useMemo(() => clients.filter((client) => (
     !clientFilters.length || clientFilters.some((filter) => matchesFilter(client, filter))
@@ -143,9 +141,10 @@ export default function StatsScreen() {
                 <MetricCard label="إجمالي قيمة العقود" value={formatCurrency(overview.totalPortfolio)} tone="info" />
                 <MetricCard label="المحصل حتى الآن" value={formatCurrency(overview.totalPaid)} tone="success" />
                 <MetricCard label="المتبقي لدى العملاء" value={formatCurrency(overview.totalRemaining)} tone="danger" />
-                <MetricCard label="رأس المال المتبقي" value={formatCurrency(remainingCapital)} tone="warning" />
               </View>
             </AppCard>
+
+            <CapitalStatsSection refreshKey={capitalRefreshKey} />
 
             <AppCard title="حالات العملاء">
               <View style={styles.metricGrid}>
