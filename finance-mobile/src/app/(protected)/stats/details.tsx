@@ -20,7 +20,7 @@ import {
   buildStatsOverview,
   RankedClientRow,
 } from '@/utils/stats';
-import { formatCurrency, formatInteger, formatPercent } from '@/utils/format';
+import { formatCurrency, formatPercent } from '@/utils/format';
 import { colors } from '@/utils/theme';
 
 interface CollapsibleCardProps extends PropsWithChildren {
@@ -117,29 +117,10 @@ export default function StatsDetailsScreen() {
 
         {!loading && !error && stats && overview ? (
           <>
-            <CollapsibleCard title="صورة المحفظة">
-              <InsightStatCard title="إجمالي قيمة العقود" value={formatCurrency(overview.totalPortfolio)} helper="المبلغ الكلي لكافة العقود بما فيها المنتهية." tone="info" />
-              <InsightStatCard title="إجمالي المتبقي للتحصيل" value={formatCurrency(overview.totalRemaining)} helper="الرصيد الحالي الذي ما زال بانتظار التحصيل." tone="danger" />
-              <InsightStatCard title="ما تم تحصيله حتى الآن" value={formatCurrency(overview.totalPaid)} helper="إجمالي الدفعات المسجلة في العقود جميعها." tone="success" />
-              <InsightStatCard title="التغطية من المحفظة" value={formatPercent(overview.collectionCoveragePercent)} helper="نسبة ما تم تحصيله مقارنة بإجمالي قيمة العقود." tone="warning" />
-            </CollapsibleCard>
-
-            <CollapsibleCard title="تشغيل يومي">
-              <View style={styles.grid}>
-                <InsightStatCard title="عقود متأخرة" value={formatInteger(overview.overdueContracts)} helper={formatCurrency(overview.overdueAmount)} tone="danger" onPress={() => router.push('/alerts/late')} />
-                <InsightStatCard title="استحقاقات خلال 7 أيام" value={formatInteger(overview.upcomingContracts)} helper={formatCurrency(overview.upcomingAmount)} tone="warning" onPress={() => router.push('/alerts/warn')} />
-                <InsightStatCard title="قضايا المحكمة" value={formatInteger(overview.courtContracts)} helper="فتح مركز القضايا" tone="court" onPress={() => router.push('/cases')} />
-                <InsightStatCard title="متوسط القسط النشط" value={formatCurrency(overview.averageMonthlyInstallment)} helper="متوسط الدفعة الشهرية للعقود النشطة." tone="info" onPress={() => router.push('/collections')} />
-              </View>
-            </CollapsibleCard>
-
-            <CollapsibleCard title="توزيع الحالات">
-              <View style={styles.grid}>
-                <InsightStatCard title="نشطون" value={formatInteger(overview.activeContracts)} tone="success" />
-                <InsightStatCard title="منتهون" value={formatInteger(overview.completedContracts)} tone="info" />
-                <InsightStatCard title="متعثرون" value={formatInteger(overview.stuckContracts)} helper="تحتاج متابعة قبل أو بعد التحويل القضائي." tone="danger" onPress={() => router.push('/alerts/stuck')} />
-                <InsightStatCard title="إجمالي الأرباح" value={formatCurrency(overview.totalProfit)} helper="الربح الكلي المحسوب من جميع العقود." tone="warning" />
-              </View>
+            <CollapsibleCard title="مؤشرات التحصيل والربحية">
+              <InsightStatCard title="إجمالي الأرباح" value={formatCurrency(overview.totalProfit)} helper="الربح الكلي المحسوب من جميع العقود." tone="success" />
+              <InsightStatCard title="نسبة التحصيل" value={formatPercent(overview.collectionCoveragePercent)} helper="المحصل مقارنة بإجمالي قيمة العقود." tone="warning" />
+              <InsightStatCard title="متوسط القسط النشط" value={formatCurrency(overview.averageMonthlyInstallment)} helper="متوسط الدفعة الشهرية للعقود النشطة." tone="info" />
             </CollapsibleCard>
 
             <CollapsibleCard title="العقود الأعلى بقاءً">

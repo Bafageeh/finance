@@ -27,7 +27,7 @@ export default function SignInScreen() {
     void handleBiometricLogin(true);
   }, [canUseBiometric, biometricAttempted, isAuthenticated]);
 
-  if (isAuthenticated) return <Redirect href="/(protected)/(tabs)" />;
+  if (isAuthenticated) return <Redirect href="/(protected)/(tabs)/stats" />;
 
   async function handleBiometricLogin(silent = false) {
     try {

@@ -14,7 +14,7 @@ export default function IndexScreen() {
     );
   }
 
-  return <Redirect href={isAuthenticated ? '/(protected)/(tabs)' : '/sign-in'} />;
+  return <Redirect href={isAuthenticated ? '/(protected)/(tabs)/stats' : '/sign-in'} />;
 }
 
 const styles = StyleSheet.create({
