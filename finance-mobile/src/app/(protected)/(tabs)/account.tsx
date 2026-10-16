@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,18 +13,40 @@ import {
   View,
 } from 'react-native';
 import { AccordionSection } from '@/components/AccordionSection';
-import { ActionTile } from '@/components/ActionTile';
-import { AppCard } from '@/components/AppCard';
-import { InfoPill } from '@/components/InfoPill';
 import { Screen } from '@/components/Screen';
 import { useSession } from '@/contexts/auth-context';
-import { AdminAccountSummary, apiConfig, changePassword, getAdminAccounts } from '@/services/api';
+import { AdminAccountSummary, changePassword, getAdminAccounts } from '@/services/api';
 import { colors } from '@/utils/theme';
 
-function maskToken(token?: string) {
-  if (!token) return 'لا يوجد';
-  if (token.length <= 18) return token;
-  return `${token.slice(0, 8)}...${token.slice(-6)}`;
+interface AccountActionRowProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  description?: string;
+  onPress: () => void;
+  disabled?: boolean;
+  destructive?: boolean;
+}
+
+function AccountActionRow({ icon, title, description, onPress, disabled, destructive }: AccountActionRowProps) {
+  return (
+    <TouchableOpacity
+      style={[styles.actionRow, disabled && styles.actionDisabled]}
+      activeOpacity={0.86}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+    >
+      <View style={[styles.actionIcon, destructive && styles.actionIconDanger]}>
+        <Ionicons name={icon} size={19} color={destructive ? colors.danger : colors.text} />
+      </View>
+      <View style={styles.actionText}>
+        <Text style={[styles.actionTitle, destructive && styles.actionTitleDanger]}>{title}</Text>
+        {description ? <Text style={styles.actionDescription}>{description}</Text> : null}
+      </View>
+      <Ionicons name="chevron-back-outline" size={16} color={destructive ? colors.danger : colors.textMuted} />
+    </TouchableOpacity>
+  );
 }
 
 export default function AccountScreen() {
@@ -42,24 +64,16 @@ export default function AccountScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [openSection, setOpenSection] = useState<'session' | 'connection' | null>(null);
 
   const userRole = session?.user?.role || (isGuestSession ? 'live-api' : 'غير محدد');
   const isAdmin = String(userRole).toLowerCase() === 'admin'
     || String(session?.user?.username || '').toLowerCase() === 'admin'
     || String(session?.user?.email || '').toLowerCase() === 'admin@pm.sa';
   const firstLetter = session?.user?.name?.trim()?.slice(0, 1) || 'م';
-  const statusTone = isGuestSession ? 'success' : 'info';
-  const statusLabel = isGuestSession ? 'جلسة مباشرة' : 'جلسة موثقة';
-  const issuedDate = session?.issued_at?.slice(0, 10) || '--';
-
-  const topBadges = useMemo(
-    () => [
-      { label: 'الوضع', value: apiConfig.useMocks ? 'تجريبي' : 'حي', tone: apiConfig.useMocks ? 'warning' as const : 'success' as const },
-      { label: 'الجلسة', value: statusLabel, tone: statusTone as 'success' | 'info' },
-    ],
-    [statusLabel, statusTone],
-  );
+  const displayName = session?.user?.name?.trim() || 'مستخدم التمويل';
+  const identifier = session?.user?.username || session?.user?.email || '';
+  const accountName = session?.user?.account_name;
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
 
   function resetPasswordForm() {
     setCurrentPassword('');
@@ -179,142 +193,101 @@ export default function AccountScreen() {
   }
 
   return (
-    <Screen title={isGuestSession ? 'الاتصال والحساب' : 'الحساب'} subtitle="إدارة الحساب والجلسة والصلاحيات.">
-      <View style={styles.heroCard}>
-        <View style={styles.heroTopRow}>
-          <View style={styles.avatarWrap}><Text style={styles.avatarText}>{firstLetter}</Text></View>
-          <View style={styles.heroTextWrap}>
-            <Text style={styles.heroTitle}>{session?.user?.name || 'مستخدم النظام'}</Text>
-            <Text style={styles.heroSubtitle}>{session?.user?.email || (isGuestSession ? 'ربط مباشر بدون بريد حساب' : 'لا يوجد بريد')}</Text>
-            <Text style={styles.heroMeta}>الصلاحية: {userRole}</Text>
+    <Screen title="حسابي" subtitle="إدارة معلوماتك وأمان حسابك" compactHeader>
+      <View style={styles.profileCard}>
+        <View style={styles.profileTop}>
+          <View style={styles.avatar}><Text style={styles.avatarLetter}>{firstLetter}</Text></View>
+          <View style={styles.profileDetails}>
+            <Text style={styles.profileName} numberOfLines={2}>{displayName}</Text>
+            {identifier ? <Text style={styles.profileIdentifier} numberOfLines={1}>{identifier}</Text> : null}
+            <View style={styles.profileBadgeRow}>
+              <View style={styles.roleBadge}>
+                <Ionicons name={isAdmin ? 'shield-checkmark-outline' : 'person-outline'} size={13} color="#fff" />
+                <Text style={styles.roleBadgeText}>{isAdmin ? 'مدير التطبيق' : 'مستخدم'}</Text>
+              </View>
+              {accountName ? <Text style={styles.profileAccountName} numberOfLines={1}>{accountName}</Text> : null}
+            </View>
           </View>
-        </View>
-
-        <View style={styles.heroBadgesRow}>
-          {topBadges.map((badge) => <InfoPill key={`${badge.label}-${badge.value}`} compact tone={badge.tone} label={badge.label} value={badge.value} />)}
-        </View>
-
-        <View style={styles.heroStatsRow}>
-          <View style={styles.heroStatBox}><Text style={styles.heroStatValue}>{issuedDate}</Text><Text style={styles.heroStatLabel}>آخر تهيئة</Text></View>
-          <View style={styles.heroStatBox}><Text style={styles.heroStatValue}>{apiConfig.useMocks ? 'Mock' : 'Live'}</Text><Text style={styles.heroStatLabel}>المصدر</Text></View>
-          <View style={styles.heroStatBox}><Text style={styles.heroStatValue}>{session?.token ? 'موجود' : 'محلي'}</Text><Text style={styles.heroStatLabel}>التوكن</Text></View>
         </View>
       </View>
 
-      <AppCard title="إجراءات الحساب" style={styles.actionsCard}>
-        <View style={styles.primaryActionsRow}>
-          <ActionTile
-            label={refreshing ? 'جارٍ التحديث' : isGuestSession ? 'تحديث الاتصال' : 'تحديث الحساب'}
-            icon={refreshing ? 'sync-outline' : 'refresh-outline'}
-            onPress={() => void handleRefresh()}
-            tone="default"
-            disabled={refreshing}
-            style={styles.halfAction}
-          />
-          <ActionTile
-            label={changingPassword ? 'جارٍ التغيير' : 'تغيير الرقم السري'}
-            icon="key-outline"
-            onPress={openPasswordSheet}
-            tone="primary"
-            disabled={isGuestSession || changingPassword}
-            style={styles.halfAction}
-          />
-        </View>
-
-        {isAdmin ? (
-          <View style={styles.primaryActionsRow}>
-            <ActionTile
-              label="مستخدم جديد"
-              icon="person-add-outline"
-              onPress={() => router.push('/account/create-user')}
-              tone="primary"
-              style={styles.halfAction}
-            />
-            <ActionTile
-              label="الحسابات الأخرى"
-              icon="people-circle-outline"
-              onPress={() => void openAccountsSheet()}
-              tone="default"
-              disabled={loadingAccounts}
-              style={styles.halfAction}
-            />
-          </View>
-        ) : null}
-
-        <ActionTile
-          label={signingOut ? 'جارٍ التنفيذ' : isGuestSession ? 'إعادة الجلسة' : 'تسجيل الخروج'}
-          icon={isGuestSession ? 'reload-outline' : 'log-out-outline'}
-          onPress={() => void handleSignOut()}
-          tone="danger"
-          disabled={signingOut}
-          style={styles.fullAction}
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>إعدادات الحساب</Text>
+        <AccountActionRow
+          icon="key-outline"
+          title="تغيير كلمة المرور"
+          description="تحديث كلمة المرور المستخدمة لتسجيل الدخول"
+          onPress={openPasswordSheet}
+          disabled={isGuestSession || changingPassword}
         />
-
-        <ActionTile
-          label={deletingAccount ? 'جارٍ حذف الحساب' : 'حذف الحساب'}
-          icon="trash-outline"
-          onPress={confirmDeleteAccount}
-          tone="danger"
-          disabled={isGuestSession || deletingAccount}
-          style={styles.fullAction}
+        <View style={styles.rowDivider} />
+        <AccountActionRow
+          icon="refresh-outline"
+          title={refreshing ? 'جارٍ تحديث الحساب...' : 'تحديث بيانات الحساب'}
+          description="تحديث معلومات المستخدم من السيرفر"
+          onPress={() => void handleRefresh()}
+          disabled={refreshing}
         />
-        <Text style={styles.dangerNote}>حذف الحساب متاح من داخل التطبيق ويزيل حساب المستخدم الحالي نهائيًا.</Text>
-
-        {(refreshing || signingOut || deletingAccount || changingPassword || loadingAccounts) ? (
-          <View style={styles.loaderRow}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.loaderText}>يتم تنفيذ العملية الحالية...</Text>
-          </View>
-        ) : null}
-      </AppCard>
+      </View>
 
       {isAdmin ? (
-        <AppCard title="صلاحيات المدير" style={styles.actionsCard}>
-          <View style={styles.adminHintRow}>
-            <View style={styles.adminIcon}><Ionicons name="shield-checkmark-outline" size={20} color={colors.success} /></View>
-            <View style={styles.adminHintTextWrap}>
-              <Text style={styles.adminHintTitle}>إنشاء المستخدمين وعرض الحسابات متاح للمدير فقط</Text>
-              <Text style={styles.adminHintText}>يمكن إنشاء مستخدم جديد باسم الدخول وكلمة المرور، ورقم الجوال اختياري، أو عرض الحسابات المرتبطة وعدد المستخدمين والعملاء.</Text>
-            </View>
-          </View>
-          <View style={styles.adminButtonsRow}>
-            <TouchableOpacity style={styles.adminOpenButton} onPress={() => router.push('/account/create-user')} activeOpacity={0.88}>
-              <Ionicons name="person-add-outline" size={16} color="#fff" />
-              <Text style={styles.adminOpenText}>إنشاء مستخدم</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.adminSecondaryButton} onPress={() => void openAccountsSheet()} activeOpacity={0.88}>
-              <Ionicons name="open-outline" size={16} color={colors.text} />
-              <Text style={styles.adminSecondaryText}>الحسابات الأخرى</Text>
-            </TouchableOpacity>
-          </View>
-        </AppCard>
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>الإدارة</Text>
+          <AccountActionRow
+            icon="person-add-outline"
+            title="إضافة مستخدم"
+            description="إنشاء حساب جديد وتحديد بيانات دخوله"
+            onPress={() => router.push('/account/create-user')}
+          />
+          <View style={styles.rowDivider} />
+          <AccountActionRow
+            icon="people-outline"
+            title="إدارة الحسابات"
+            description="عرض الحسابات المرتبطة ومستخدميها"
+            onPress={() => void openAccountsSheet()}
+            disabled={loadingAccounts}
+          />
+        </View>
       ) : null}
 
-      <AccordionSection
-        title="معلومات الجلسة"
-        subtitle="التوكن والحالة الحالية للجلسة"
-        expanded={openSection === 'session'}
-        onToggle={() => setOpenSection((prev) => (prev === 'session' ? null : 'session'))}
-      >
-        <View style={styles.infoList}>
-          <View style={styles.infoRow}><Text style={styles.infoValue}>{statusLabel}</Text><Text style={styles.infoLabel}>نوع الجلسة</Text></View>
-          <View style={styles.infoRow}><Text style={styles.infoValue}>{issuedDate}</Text><Text style={styles.infoLabel}>وقت التهيئة</Text></View>
-          <View style={styles.infoRow}><Text style={styles.infoValue}>{maskToken(session?.token)}</Text><Text style={styles.infoLabel}>التوكن</Text></View>
-        </View>
-      </AccordionSection>
+      <View style={styles.sectionCard}>
+        <Text style={styles.sectionTitle}>الجلسة والأمان</Text>
+        <AccountActionRow
+          icon="log-out-outline"
+          title={signingOut ? 'جارٍ تسجيل الخروج...' : 'تسجيل الخروج'}
+          description="إنهاء الجلسة الحالية على هذا الجهاز"
+          onPress={() => void handleSignOut()}
+          disabled={signingOut}
+        />
+      </View>
 
-      <AccordionSection
-        title="بيانات الربط"
-        subtitle="الخادم والوضع الحالي"
-        expanded={openSection === 'connection'}
-        onToggle={() => setOpenSection((prev) => (prev === 'connection' ? null : 'connection'))}
-      >
-        <View style={styles.pillsWrap}>
-          <InfoPill compact tone={apiConfig.useMocks ? 'warning' : 'success'} label="بيئة العمل" value={apiConfig.useMocks ? 'تجريبية' : 'حية'} icon={<Ionicons name={apiConfig.useMocks ? 'flask-outline' : 'cloud-done-outline'} size={15} color={apiConfig.useMocks ? colors.warning : colors.success} />} />
-          <InfoPill compact tone="info" label="التطبيق" value="Expo Router" icon={<Ionicons name="phone-portrait-outline" size={15} color={colors.info} />} />
+      {!isGuestSession ? (
+        <AccordionSection
+          title="حذف الحساب نهائيًا"
+          subtitle="إجراء اختياري لا يمكن التراجع عنه"
+          expanded={showDeleteAccount}
+          onToggle={() => setShowDeleteAccount((current) => !current)}
+        >
+          <Text style={styles.deleteHelp}>
+            يؤدي حذف الحساب إلى إزالة حساب المستخدم نهائيًا وتسجيل الخروج. لا تُحذف سجلات العملاء أو عقود التمويل الخاصة بالمنشأة.
+          </Text>
+          <AccountActionRow
+            icon="trash-outline"
+            title={deletingAccount ? 'جارٍ حذف الحساب...' : 'حذف حسابي'}
+            description="يتطلب تأكيدين قبل التنفيذ"
+            onPress={confirmDeleteAccount}
+            disabled={deletingAccount}
+            destructive
+          />
+        </AccordionSection>
+      ) : null}
+
+      {(refreshing || signingOut || deletingAccount || changingPassword || loadingAccounts) ? (
+        <View style={styles.loaderRow}>
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text style={styles.loaderText}>جارٍ تنفيذ العملية...</Text>
         </View>
-        <View style={styles.connectionBox}><Text style={styles.connectionLabel}>عنوان الـ API</Text><Text style={styles.connectionValue}>{apiConfig.baseUrl}</Text></View>
-      </AccordionSection>
+      ) : null}
 
       <Modal visible={passwordSheetVisible} transparent animationType="fade" onRequestClose={closePasswordSheet}>
         <View style={styles.modalBackdrop}>
@@ -383,44 +356,67 @@ export default function AccountScreen() {
 }
 
 const styles = StyleSheet.create({
-  heroCard: { backgroundColor: colors.primary, borderRadius: 28, padding: 18, marginBottom: 12, gap: 14 },
-  heroTopRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14 },
-  avatarWrap: { width: 62, height: 62, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' },
-  avatarText: { color: '#fff', fontSize: 24, fontWeight: '900' },
-  heroTextWrap: { flex: 1, gap: 4 },
-  heroTitle: { fontSize: 24, fontWeight: '900', color: '#fff', textAlign: 'right' },
-  heroSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.82)', textAlign: 'right' },
-  heroMeta: { fontSize: 12, color: 'rgba(255,255,255,0.68)', textAlign: 'right' },
-  heroBadgesRow: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 },
-  heroStatsRow: { flexDirection: 'row-reverse', gap: 10 },
-  heroStatBox: { flex: 1, borderRadius: 18, paddingVertical: 12, paddingHorizontal: 10, backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', gap: 4 },
-  heroStatValue: { fontSize: 13, fontWeight: '900', color: '#fff', textAlign: 'center' },
-  heroStatLabel: { fontSize: 12, color: 'rgba(255,255,255,0.72)', textAlign: 'center', fontWeight: '700' },
-  actionsCard: { marginBottom: 12 },
-  primaryActionsRow: { flexDirection: 'row-reverse', gap: 10 },
-  halfAction: { flex: 1 },
-  fullAction: { width: '100%' },
-  dangerNote: { color: colors.textMuted, fontSize: 12, lineHeight: 19, textAlign: 'right', fontWeight: '700' },
-  loaderRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  loaderText: { fontSize: 12, color: colors.textMuted, fontWeight: '700' },
-  adminHintRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12 },
-  adminIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.successSoft, alignItems: 'center', justifyContent: 'center' },
-  adminHintTextWrap: { flex: 1, alignItems: 'flex-end', gap: 4 },
-  adminHintTitle: { color: colors.text, fontSize: 14, fontWeight: '900', textAlign: 'right' },
-  adminHintText: { color: colors.textMuted, fontSize: 12, lineHeight: 19, textAlign: 'right' },
-  adminButtonsRow: { flexDirection: 'row-reverse', gap: 10 },
-  adminOpenButton: { flex: 1, minHeight: 44, borderRadius: 16, backgroundColor: colors.primary, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  adminOpenText: { color: '#fff', fontSize: 13, fontWeight: '900' },
-  adminSecondaryButton: { flex: 1, minHeight: 44, borderRadius: 16, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  adminSecondaryText: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  infoList: { gap: 12 },
-  infoRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
-  infoLabel: { fontSize: 13, color: colors.textMuted, fontWeight: '700' },
-  infoValue: { flex: 1, fontSize: 13, color: colors.text, fontWeight: '800', textAlign: 'left' },
-  pillsWrap: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 },
-  connectionBox: { borderRadius: 18, backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border, padding: 14, gap: 8 },
-  connectionLabel: { fontSize: 12, color: colors.textMuted, textAlign: 'right', fontWeight: '700' },
-  connectionValue: { fontSize: 13, color: colors.text, textAlign: 'left', fontWeight: '800' },
+  profileCard: {
+    backgroundColor: colors.primary,
+    borderRadius: 20,
+    padding: 17,
+    marginBottom: 14,
+  },
+  profileTop: { flexDirection: 'row-reverse', alignItems: 'center', gap: 13 },
+  avatar: {
+    width: 58, height: 58, borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.23)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarLetter: { fontSize: 24, fontWeight: '900', color: '#fff' },
+  profileDetails: { flex: 1, minWidth: 0, gap: 6 },
+  profileName: { fontSize: 19, fontWeight: '900', color: '#fff', textAlign: 'right' },
+  profileIdentifier: { fontSize: 12, color: 'rgba(255,255,255,0.76)', textAlign: 'right' },
+  profileBadgeRow: { flexDirection: 'row-reverse', alignItems: 'center', flexWrap: 'wrap', gap: 9 },
+  roleBadge: {
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 10,
+    paddingVertical: 5, borderRadius: 15,
+  },
+  roleBadgeText: { fontSize: 11, fontWeight: '800', color: '#fff' },
+  profileAccountName: { flexShrink: 1, fontSize: 11, color: 'rgba(255,255,255,0.7)', textAlign: 'right' },
+  sectionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 5,
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 14, fontWeight: '900', color: colors.text,
+    textAlign: 'right', marginBottom: 8,
+  },
+  actionRow: {
+    minHeight: 62,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 11,
+    paddingVertical: 11,
+  },
+  actionDisabled: { opacity: 0.55 },
+  actionIcon: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  actionIconDanger: { backgroundColor: colors.dangerSoft },
+  actionText: { flex: 1, minWidth: 0, gap: 3 },
+  actionTitle: { fontSize: 13, fontWeight: '800', color: colors.text, textAlign: 'right' },
+  actionTitleDanger: { color: colors.danger },
+  actionDescription: { fontSize: 11, lineHeight: 17, color: colors.textMuted, textAlign: 'right' },
+  rowDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginRight: 51 },
+  deleteHelp: { fontSize: 12, lineHeight: 21, color: colors.textMuted, textAlign: 'right' },
+  loaderRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 9, paddingVertical: 8 },
+  loaderText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.38)', justifyContent: 'center', padding: 22 },
   passwordSheet: { backgroundColor: colors.background, borderRadius: 26, padding: 18, gap: 14, borderWidth: 1, borderColor: colors.border },
   accountsSheet: { maxHeight: '82%', backgroundColor: colors.background, borderRadius: 26, padding: 18, gap: 14, borderWidth: 1, borderColor: colors.border },

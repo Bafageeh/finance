@@ -55,7 +55,7 @@ export default function CreateUserScreen() {
   }
 
   return (
-    <Screen title="مستخدم جديد" subtitle="أنشئ حسابًا جديدًا باسم الدخول وكلمة المرور." actionLabel="رجوع" actionIcon="arrow-forward" onActionPress={() => router.replace('/sign-in')}>
+    <Screen title="مستخدم جديد" subtitle="أنشئ حسابًا جديدًا باسم الدخول وكلمة المرور." actionLabel="رجوع" actionIcon="arrow-back" onActionPress={() => router.replace('/sign-in')}>
       <AppCard title="بيانات المستخدم">
         <View style={styles.stack}>
           <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="اسم المستخدم" placeholderTextColor="#a09a91" textAlign="right" />

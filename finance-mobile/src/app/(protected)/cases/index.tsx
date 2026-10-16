@@ -72,7 +72,7 @@ export default function CasesCenterScreen() {
       title="مركز القضايا"
       subtitle="شاشة مستقلة لمتابعة القضايا، ترتيبها، وفتح العميل مباشرة من ملفه القضائي."
       scrollable={false}
-      rightSlot={<IconButton icon="arrow-forward" accessibilityLabel="رجوع" onPress={() => router.back()} />}
+      rightSlot={<IconButton icon="arrow-back" accessibilityLabel="رجوع" onPress={() => router.back()} />}
     >
       <TextInput
         style={styles.search}

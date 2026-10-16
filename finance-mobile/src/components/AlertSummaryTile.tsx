@@ -4,7 +4,7 @@ import { AlertTone } from '@/components/AlertItemCard';
 import { colors } from '@/utils/theme';
 
 interface AlertSummaryTileProps {
-  tone: AlertTone;
+  tone: AlertTone | 'active' | 'done';
   title: string;
   count: number;
   amountText?: string;
@@ -13,6 +13,20 @@ interface AlertSummaryTileProps {
 }
 
 const palette = {
+  active: {
+    background: colors.successSoft,
+    border: '#b9dfd0',
+    accent: colors.success,
+    text: '#116747',
+    icon: 'checkmark-circle-outline' as const,
+  },
+  done: {
+    background: colors.surfaceMuted,
+    border: colors.border,
+    accent: colors.neutral,
+    text: colors.text,
+    icon: 'checkmark-done-circle-outline' as const,
+  },
   court: {
     background: colors.courtSoft,
     border: '#cbc7f5',
@@ -49,6 +63,8 @@ export function AlertSummaryTile({ tone, title, count, amountText, helperText, o
   return (
     <Pressable
       onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
       style={({ pressed }) => [
         styles.card,
         {
@@ -70,7 +86,7 @@ export function AlertSummaryTile({ tone, title, count, amountText, helperText, o
       </View>
 
       <View style={styles.footerRow}>
-        {amountText ? <Text style={[styles.amount, { color: toneStyles.text }]} numberOfLines={1}>{amountText}</Text> : <View />}
+        {amountText ? <Text style={[styles.amount, { color: toneStyles.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>{amountText}</Text> : <View />}
         <Text style={[styles.count, { color: toneStyles.accent }]}>{count}</Text>
       </View>
     </Pressable>

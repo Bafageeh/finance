@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { DimensionValue, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Client } from '@/types/api';
 import { getClientAlertInfo, getNextUnpaidScheduleItem, getOverdueScheduleItems } from '@/utils/finance';
 import { formatCurrency, formatDate, getClientDisplayStatus } from '@/utils/format';
+import { buildPaymentProgress } from '@/utils/payment-progress';
+import { buildCapitalRecoveryPosition, getClientCapitalRecoveryTarget } from '@/utils/capital-recovery';
 import { colors } from '@/utils/theme';
 
 interface ClientListItemProps {
@@ -40,15 +42,16 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
     ? ((Number(client.summary.ahmad_total) || 0) / ahmadProfitCapital) * 100 * (12 / financingMonths)
     : 0;
   const isLate = overdueItems.length > 0;
-  const progressColor = client.has_court
-    ? colors.court
-    : status === 'stuck'
-      ? colors.warning
-      : status === 'done'
-        ? colors.info
-        : isLate
-          ? colors.danger
-          : colors.success;
+  const bondTotal = Number(client.summary.bond_total) > 0
+    ? Number(client.summary.bond_total)
+    : Math.max(0, Number(client.summary.paid_amount) + Number(client.summary.remaining_amount));
+  const progress = buildPaymentProgress(
+    bondTotal,
+    Number(client.summary.paid_amount),
+    alertInfo.overdueAmount,
+  );
+  const capitalGoal = getClientCapitalRecoveryTarget(client);
+  const recovery = buildCapitalRecoveryPosition(bondTotal, progress.paid, capitalGoal);
 
   const statusLabel = client.has_court
     ? 'قضية'
@@ -164,8 +167,57 @@ export function ClientListItem({ client, onPress }: ClientListItemProps) {
         </View>
       ) : null}
 
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${client.summary.progress_percent}%`, backgroundColor: progressColor }]} />
+      <View style={styles.progressBreakdown}>
+        <View style={styles.capitalBarContainer}>
+        <View
+          style={styles.progressTrack}
+          accessibilityRole="text"
+          accessibilityLabel={'المدفوع ' + formatCurrency(progress.paid) + '، المتأخر ' + formatCurrency(progress.overdue) + '، المتبقي غير المتأخر ' + formatCurrency(progress.upcoming)}
+        >
+          {progress.paidPercent > 0 ? (
+            <View style={[styles.progressPart, { width: (String(progress.paidPercent) + '%') as DimensionValue, backgroundColor: colors.success }]} />
+          ) : null}
+          {progress.overduePercent > 0 ? (
+            <View style={[styles.progressPart, { width: (String(progress.overduePercent) + '%') as DimensionValue, backgroundColor: colors.danger }]} />
+          ) : null}
+          {progress.upcomingPercent > 0 ? (
+            <View style={[styles.progressPart, { width: (String(progress.upcomingPercent) + '%') as DimensionValue, backgroundColor: '#b5b8bc' }]} />
+          ) : null}
+        </View>
+          {recovery.visible && !recovery.outOfRange ? (
+            <View pointerEvents="none" style={styles.capitalMarkerOverlay}>
+              <View style={{ width: (String(recovery.markerPercent) + '%') as DimensionValue }} />
+              <View style={[styles.capitalMarker, recovery.reached && styles.capitalMarkerReached]} />
+            </View>
+          ) : null}
+        </View>
+        {recovery.visible ? (
+          <View style={styles.capitalLegendRow}>
+            <View style={styles.capitalLegendHeading}>
+              <View style={[styles.capitalLegendDot, recovery.reached && styles.capitalDotReached]} />
+              <Text style={styles.capitalLegendText} numberOfLines={1}>
+                {recovery.outOfRange ? 'رأس المال خارج قيمة السند' : 'استرداد رأس المال عند ' + recovery.thresholdPercent + '%'}
+              </Text>
+            </View>
+            <Text style={[styles.capitalRecoveryStatus, recovery.reached && styles.capitalRecoveryDone]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+              {recovery.reached ? 'تم الاسترداد' : 'باقٍ ' + formatCurrency(recovery.remainingToRecover)}
+            </Text>
+          </View>
+        ) : null}
+        <View style={styles.progressLegend}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+            <Text style={styles.legendText}>مدفوع {progress.paidRoundedPercent}%</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: colors.danger }]} />
+            <Text style={styles.legendText}>متأخر {progress.overdueRoundedPercent}%</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#9ca0a6' }]} />
+            <Text style={styles.legendText}>متبقٍ {progress.upcomingRoundedPercent}%</Text>
+          </View>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -375,14 +427,47 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  capitalBarContainer: { position: 'relative' },
+  capitalMarkerOverlay: {
+    ...StyleSheet.absoluteFill,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+  },
+  capitalMarker: {
+    width: 3, height: 17, borderRadius: 2,
+    backgroundColor: '#b77809', borderWidth: 0.5, borderColor: '#fff',
+  },
+  capitalMarkerReached: { backgroundColor: '#065f46' },
+  capitalLegendRow: {
+    flexDirection: 'row-reverse', justifyContent: 'space-between',
+    alignItems: 'center', gap: 6,
+  },
+  capitalLegendHeading: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4, flexShrink: 1 },
+  capitalLegendDot: { width: 7, height: 12, borderRadius: 2, backgroundColor: '#b77809' },
+  capitalDotReached: { backgroundColor: '#065f46' },
+  capitalLegendText: { fontSize: 9, color: '#8a5808', fontWeight: '800', textAlign: 'right', flexShrink: 1 },
+  capitalRecoveryStatus: { fontSize: 9, color: colors.textMuted, fontWeight: '700', textAlign: 'left', flexShrink: 1 },
+  capitalRecoveryDone: { color: colors.success },
+  progressBreakdown: { gap: 5 },
   progressTrack: {
-    height: 6,
+    flexDirection: 'row-reverse',
+    height: 8,
     backgroundColor: '#ebe7df',
     borderRadius: 999,
     overflow: 'hidden',
   },
-  progressFill: {
-    height: '100%',
-    borderRadius: 999,
+  progressPart: { height: '100%' },
+  progressLegend: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 4,
   },
+  legendItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 3,
+  },
+  legendDot: { width: 6, height: 6, borderRadius: 3 },
+  legendText: { fontSize: 9, color: colors.textMuted, fontWeight: '700' },
 });

@@ -377,7 +377,7 @@ export default function ClientFormScreen() {
       compactHeader
       rightSlot={
         <View style={styles.headerActions}>
-          <IconButton icon="arrow-forward" accessibilityLabel="رجوع" onPress={() => router.back()} />
+          <IconButton icon="arrow-back" accessibilityLabel="رجوع" onPress={() => router.back()} />
           <IconButton
             icon={saving ? 'hourglass-outline' : 'checkmark-outline'}
             accessibilityLabel={saving ? 'جارٍ الحفظ' : 'حفظ'}

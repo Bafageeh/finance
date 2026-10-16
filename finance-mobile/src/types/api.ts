@@ -118,7 +118,11 @@ export interface StatsData {
   ali_monthly: number;
   zakat_base: number;
   zakat: number;
-  sadaqa: number;
+  sadaqa: number; // outstanding after deducted charity payments
+  sadaqa_total?: number;
+  sadaqa_paid?: number;
+  sadaqa_overpaid?: number;
+  sadaqa_profit_base?: number;
   stuck: StatsStuck;
   alerts: {
     late: StatsAlertLate[];

@@ -104,11 +104,11 @@ jobs:
             --ks-pass env:KS_PASS \
             --ks-key-alias "$KS_ALIAS" \
             --key-pass env:KEY_PASS \
-            --out ../apk-output/finance-1.0.9-8.apk \
+            --out ../apk-output/finance-1.0.11-9.apk \
             ../apk-work/finance-aligned.apk
-          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs ../apk-output/finance-1.0.9-8.apk
-          "$BUILD_TOOLS/zipalign" -c -p 4 ../apk-output/finance-1.0.9-8.apk
-          cp ../apk-output/finance-1.0.9-8.apk ../apk-output/finance-latest.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs ../apk-output/finance-1.0.11-9.apk
+          "$BUILD_TOOLS/zipalign" -c -p 4 ../apk-output/finance-1.0.11-9.apk
+          cp ../apk-output/finance-1.0.11-9.apk ../apk-output/finance-latest.apk
           sha256sum ../apk-output/*.apk
           ls -lh ../apk-output/*.apk
 
@@ -125,8 +125,8 @@ jobs:
         run: |
           cd ..
           TAG="finance-apk-${GITHUB_SHA}"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Finance APK 1.0.9 (8)" --notes "نسخة Android موقعة، مبنية عبر GitHub Actions وGradle دون استخدام EAS."
-          gh release upload "$TAG" apk-output/finance-1.0.9-8.apk --clobber
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "Finance APK 1.0.11 (9)" --notes "نسخة Android موقعة، مبنية عبر GitHub Actions وGradle دون استخدام EAS."
+          gh release upload "$TAG" apk-output/finance-1.0.11-9.apk --clobber
           gh release upload "$TAG" apk-output/finance-latest.apk --clobber
 
       - name: Publish latest release

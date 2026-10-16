@@ -60,7 +60,7 @@ export default function PartnerClientDetailsScreen() {
       compactHeader
       rightSlot={
         <View style={styles.headerActions}>
-          <IconButton icon="arrow-forward" accessibilityLabel="رجوع" onPress={() => router.back()} />
+          <IconButton icon="arrow-back" accessibilityLabel="رجوع" onPress={() => router.back()} />
         </View>
       }
     >

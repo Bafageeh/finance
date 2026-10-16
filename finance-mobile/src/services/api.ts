@@ -549,3 +549,54 @@ export const apiConfig = {
   mockFlagEnabled: MOCK_FLAG,
   hasRealApiBase: HAS_REAL_API_BASE,
 };
+
+
+export interface CharityPaymentRecord {
+  id: number;
+  amount: number;
+  paid_at: string;
+  note?: string | null;
+  created_at?: string | null;
+}
+
+export interface CharityOverview {
+  ahmad_profit_eligible: number;
+  sadaqa_total: number;
+  sadaqa_paid: number;
+  sadaqa_remaining: number;
+  sadaqa_overpaid: number;
+  eligible_clients_count: number;
+  excluded_stuck_count: number;
+  payments: CharityPaymentRecord[];
+}
+
+export interface CharityPaymentInput {
+  amount: number;
+  paid_at: string;
+  note?: string | null;
+}
+
+export async function getCharityOverview(): Promise<CharityOverview> {
+  const result = await request<ApiEnvelope<CharityOverview>>('/charity');
+  return pickEnvelopeData<CharityOverview>(result);
+}
+
+export async function createCharityPayment(value: CharityPaymentInput): Promise<CharityPaymentRecord> {
+  const result = await request<ApiEnvelope<CharityPaymentRecord>>('/charity/payments', {
+    method: 'POST',
+    body: JSON.stringify(value),
+  });
+  return pickEnvelopeData<CharityPaymentRecord>(result);
+}
+
+export async function editCharityPayment(id: number, value: CharityPaymentInput): Promise<CharityPaymentRecord> {
+  const result = await request<ApiEnvelope<CharityPaymentRecord>>('/charity/payments/' + id, {
+    method: 'PUT',
+    body: JSON.stringify(value),
+  });
+  return pickEnvelopeData<CharityPaymentRecord>(result);
+}
+
+export async function removeCharityPayment(id: number): Promise<void> {
+  await request('/charity/payments/' + id, { method: 'DELETE' });
+}

@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, View } from 'react-native';
+import { DimensionValue, StyleSheet, Text, View } from 'react-native';
 import { Client, ClientStatus } from '@/types/api';
 import { formatCurrency } from '@/utils/format';
+import { buildPaymentProgress } from '@/utils/payment-progress';
+import { buildCapitalRecoveryPosition, getClientCapitalRecoveryTarget } from '@/utils/capital-recovery';
 import { colors } from '@/utils/theme';
 import { IconPillButton } from './IconPillButton';
 
@@ -32,6 +34,13 @@ export function ClientHeroCard({
   onToggleCourt,
   disabled,
 }: ClientHeroCardProps) {
+  const bondTotal = Number(client.summary.bond_total) > 0
+    ? Number(client.summary.bond_total)
+    : Math.max(0, Number(client.summary.paid_amount) + Number(client.summary.remaining_amount));
+  const paymentProgress = buildPaymentProgress(bondTotal, Number(client.summary.paid_amount), overdueAmount);
+  const capitalGoal = getClientCapitalRecoveryTarget(client);
+  const recovery = buildCapitalRecoveryPosition(bondTotal, paymentProgress.paid, capitalGoal);
+
   const compactStatusLabel = client.has_court
     ? 'قضية'
     : status === 'stuck'
@@ -103,13 +112,49 @@ export function ClientHeroCard({
         </View>
       </View>
 
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: `${client.summary.progress_percent}%`, backgroundColor: progressColor }]} />
-      </View>
-
-      <View style={styles.statsRow}>
-        <MiniStat label="المدفوع" value={formatCurrency(client.summary.paid_amount)} tone="success" />
-        <MiniStat label="المتبقي" value={formatCurrency(client.summary.remaining_amount)} tone={overdueCount > 0 ? 'danger' : 'default'} />
+      <View style={styles.paymentProgress}>
+        <Text style={styles.breakdownTitle}>توزيع قيمة السند</Text>
+        <View style={styles.capitalBarContainer}>
+        <View
+          style={styles.progressTrack}
+          accessibilityRole="text"
+          accessibilityLabel={'المدفوع ' + formatCurrency(paymentProgress.paid) + '، المتأخر ' + formatCurrency(paymentProgress.overdue) + '، المتبقي غير المتأخر ' + formatCurrency(paymentProgress.upcoming)}
+        >
+          {paymentProgress.paidPercent > 0 ? (
+            <View style={[styles.progressPart, { width: (String(paymentProgress.paidPercent) + '%') as DimensionValue, backgroundColor: colors.success }]} />
+          ) : null}
+          {paymentProgress.overduePercent > 0 ? (
+            <View style={[styles.progressPart, { width: (String(paymentProgress.overduePercent) + '%') as DimensionValue, backgroundColor: colors.danger }]} />
+          ) : null}
+          {paymentProgress.upcomingPercent > 0 ? (
+            <View style={[styles.progressPart, { width: (String(paymentProgress.upcomingPercent) + '%') as DimensionValue, backgroundColor: '#b5b8bc' }]} />
+          ) : null}
+        </View>
+          {recovery.visible && !recovery.outOfRange ? (
+            <View pointerEvents="none" style={styles.capitalMarkerOverlay}>
+              <View style={{ width: (String(recovery.markerPercent) + '%') as DimensionValue }} />
+              <View style={[styles.capitalMarker, recovery.reached && styles.capitalMarkerReached]} />
+            </View>
+          ) : null}
+        </View>
+        {recovery.visible ? (
+          <View style={styles.capitalLegendRow}>
+            <View style={styles.capitalLegendHeading}>
+              <View style={[styles.capitalLegendDot, recovery.reached && styles.capitalDotReached]} />
+              <Text style={styles.capitalLegendText} numberOfLines={1}>
+                {recovery.outOfRange ? 'رأس المال خارج قيمة السند' : 'نقطة استرداد رأس المال: ' + recovery.thresholdPercent + '%'}
+              </Text>
+            </View>
+            <Text style={[styles.capitalRecoveryStatus, recovery.reached && styles.capitalRecoveryDone]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+              {recovery.reached ? 'تم الاسترداد' : 'باقٍ ' + formatCurrency(recovery.remainingToRecover)}
+            </Text>
+          </View>
+        ) : null}
+        <View style={styles.statsRow}>
+          <MiniStat label="المدفوع" value={formatCurrency(paymentProgress.paid)} percent={paymentProgress.paidRoundedPercent} tone="success" />
+          <MiniStat label="المتأخر" value={formatCurrency(paymentProgress.overdue)} percent={paymentProgress.overdueRoundedPercent} tone="danger" />
+          <MiniStat label="المتبقي" detail="غير متأخر" value={formatCurrency(paymentProgress.upcoming)} percent={paymentProgress.upcomingRoundedPercent} tone="default" />
+        </View>
       </View>
 
       <View style={styles.financialMetricsGrid}>
@@ -180,10 +225,14 @@ export function ClientHeroCard({
 function MiniStat({
   label,
   value,
+  percent,
+  detail,
   tone = 'default',
 }: {
   label: string;
   value: string;
+  percent: number;
+  detail?: string;
   tone?: 'default' | 'success' | 'danger' | 'info';
 }) {
   const palette =
@@ -196,11 +245,15 @@ function MiniStat({
           : { background: colors.surfaceMuted, value: colors.text };
 
   return (
-    <View style={[styles.statCard, { backgroundColor: palette.background }]}> 
-      <Text style={[styles.statValue, { color: palette.value }]} numberOfLines={1}>
+    <View style={[styles.statCard, { backgroundColor: palette.background }]}>
+      <View style={styles.statHeader}>
+        <View style={[styles.statDot, { backgroundColor: tone === 'default' ? colors.neutral : palette.value }]} />
+        <Text style={styles.statLabel}>{label}</Text>
+      </View>
+      <Text style={[styles.statValue, { color: palette.value }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.68}>
         {value}
       </Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statFootnote}>{percent}%{detail ? ' · ' + detail : ''}</Text>
     </View>
   );
 }
@@ -320,20 +373,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  progressTrack: {
-    height: 7,
-    borderRadius: 999,
-    backgroundColor: colors.surfaceMuted,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  statsRow: {
+  capitalBarContainer: { position: 'relative' },
+  capitalMarkerOverlay: {
+    ...StyleSheet.absoluteFill,
     flexDirection: 'row-reverse',
-    gap: 8,
+    alignItems: 'center',
   },
+  capitalMarker: {
+    width: 3, height: 21, borderRadius: 2,
+    backgroundColor: '#b77809', borderWidth: 0.5, borderColor: '#fff',
+  },
+  capitalMarkerReached: { backgroundColor: '#065f46' },
+  capitalLegendRow: {
+    flexDirection: 'row-reverse', justifyContent: 'space-between',
+    alignItems: 'center', gap: 6,
+  },
+  capitalLegendHeading: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, flexShrink: 1 },
+  capitalLegendDot: { width: 8, height: 14, borderRadius: 2, backgroundColor: '#b77809' },
+  capitalDotReached: { backgroundColor: '#065f46' },
+  capitalLegendText: { fontSize: 11, color: '#8a5808', fontWeight: '800', textAlign: 'right', flexShrink: 1 },
+  capitalRecoveryStatus: { fontSize: 11, color: colors.textMuted, fontWeight: '700', textAlign: 'left', flexShrink: 1 },
+  capitalRecoveryDone: { color: colors.success },
+  paymentProgress: { gap: 8 },
+  breakdownTitle: { color: colors.textMuted, textAlign: 'right', fontSize: 11, fontWeight: '700' },
+  progressTrack: {
+    height: 11, width: '100%', borderRadius: 999,
+    backgroundColor: colors.surfaceMuted, overflow: 'hidden',
+    flexDirection: 'row-reverse',
+  },
+  progressPart: { height: '100%' },
+  statsRow: { flexDirection: 'row-reverse', gap: 6 },
   financialMetricsGrid: {
     flexDirection: 'row-reverse',
     flexWrap: 'wrap',
@@ -361,22 +430,14 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   statCard: {
-    flex: 1,
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    gap: 4,
+    flex: 1, minWidth: 0, borderRadius: 13,
+    paddingHorizontal: 8, paddingVertical: 9, gap: 5,
   },
-  statValue: {
-    fontSize: 13,
-    fontWeight: '800',
-    textAlign: 'right',
-  },
-  statLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-    textAlign: 'right',
-  },
+  statHeader: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5 },
+  statDot: { height: 8, width: 8, borderRadius: 4 },
+  statValue: { fontSize: 12, fontWeight: '900', textAlign: 'right' },
+  statLabel: { fontSize: 11, fontWeight: '800', color: colors.textMuted, textAlign: 'right' },
+  statFootnote: { color: colors.textMuted, fontSize: 10, textAlign: 'right' },
   noticeWrap: {
     gap: 6,
   },

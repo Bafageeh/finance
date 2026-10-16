@@ -73,7 +73,7 @@ export default function CreateUserScreen() {
       <Screen
         title="مستخدم جديد"
         subtitle="هذه الصلاحية متاحة للمدير فقط."
-        rightSlot={<IconButton icon="arrow-forward" accessibilityLabel="رجوع" onPress={() => router.back()} />}
+        rightSlot={<IconButton icon="arrow-back" accessibilityLabel="رجوع" onPress={() => router.back()} />}
       >
         <AppCard title="غير مصرح">
           <Text style={styles.errorText}>لا يمكن إنشاء مستخدم جديد من هذا الحساب.</Text>
@@ -86,7 +86,7 @@ export default function CreateUserScreen() {
     <Screen
       title="مستخدم جديد"
       subtitle="أنشئ مستخدمًا جديدًا باسم الدخول وكلمة المرور."
-      rightSlot={<IconButton icon="arrow-forward" accessibilityLabel="رجوع" onPress={() => router.back()} />}
+      rightSlot={<IconButton icon="arrow-back" accessibilityLabel="رجوع" onPress={() => router.back()} />}
     >
       <AppCard title="بيانات المستخدم">
         <View style={styles.fieldsStack}>

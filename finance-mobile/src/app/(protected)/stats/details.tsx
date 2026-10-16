@@ -101,7 +101,7 @@ export default function StatsDetailsScreen() {
       title="تفصيل الإحصائيات"
       subtitle="تحليل أعمق للمحفظة، المخاطر، العقود الأعلى قيمة، وأولويات المتابعة اليومية."
       scrollable={false}
-      rightSlot={<IconButton icon="arrow-forward" accessibilityLabel="رجوع" onPress={() => router.back()} />}
+      rightSlot={<IconButton icon="arrow-back" accessibilityLabel="رجوع" onPress={() => router.back()} />}
     >
       <ScrollView
         contentContainerStyle={styles.content}

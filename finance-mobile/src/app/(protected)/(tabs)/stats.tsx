@@ -1,11 +1,11 @@
 import { router, useIsFocused } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { AlertSummaryTile } from '@/components/AlertSummaryTile';
 import { AppCard } from '@/components/AppCard';
-import { CollectionPreviewRow } from '@/components/CollectionPreviewRow';
 import { CapitalStatsSection } from '@/components/CapitalStatsSection';
-import { EmptyState } from '@/components/EmptyState';
+import { PortfolioCollectionProgress } from '@/components/PortfolioCollectionProgress';
 import { KeyValueRow } from '@/components/KeyValueRow';
 import { LoadingBlock } from '@/components/LoadingBlock';
 import { MetricCard } from '@/components/MetricCard';
@@ -13,33 +13,20 @@ import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/SectionHeader';
 import { getClients, getStats } from '@/services/api';
 import { getFollowUpSummaries } from '@/services/follow-up-store';
-import { Client, ClientFilter, StatsData } from '@/types/api';
+import { Client, StatsData } from '@/types/api';
 import { FollowUpSummary } from '@/types/follow-up';
-import { buildCollectionEntries } from '@/utils/alerts';
 import { buildCollectionAssistantBoard } from '@/utils/collection-assistant';
 import { getClientAlertInfo } from '@/utils/finance';
 import { formatCurrency } from '@/utils/format';
-import { buildStatsOverview } from '@/utils/stats';
+import { buildStatsOverview, classifyStatsClient } from '@/utils/stats';
 import { colors } from '@/utils/theme';
-
-type DashboardFilter = Extract<ClientFilter, 'all' | 'active' | 'late' | 'stuck' | 'court' | 'done'>;
-type SelectedFilter = Exclude<DashboardFilter, 'all'>;
-
-const filterOptions: { key: DashboardFilter; label: string }[] = [
-  { key: 'all', label: 'الكل' },
-  { key: 'active', label: 'نشط' },
-  { key: 'late', label: 'متأخر' },
-  { key: 'stuck', label: 'متعثر' },
-  { key: 'court', label: 'قضية' },
-  { key: 'done', label: 'منتهي' },
-];
 
 export default function StatsScreen() {
   const isFocused = useIsFocused();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
-  const [clientFilters, setClientFilters] = useState<SelectedFilter[]>([]);
   const [capitalRefreshKey, setCapitalRefreshKey] = useState(0);
+  const [showStuckCapital, setShowStuckCapital] = useState(false);
   const [followUps, setFollowUps] = useState<Record<number, FollowUpSummary>>({});
   const [assistantLoading, setAssistantLoading] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -77,49 +64,55 @@ export default function StatsScreen() {
     return () => { cancelled = true; };
   }, [clients, isFocused, loading, error]);
 
-  const overview = useMemo(() => stats ? buildStatsOverview(stats, clients) : null, [stats, clients]);
-  const counts = useMemo(() => buildClientCounts(clients), [clients]);
+  // Portfolio bar and headline figures refer to open contracts only.
+  // Historical realized profit figures below continue to cover the full history.
+  const portfolioClients = useMemo(() => clients.filter((client) =>
+    client.status !== 'done' && Number(client.summary?.remaining_amount ?? 0) > 0.01
+  ), [clients]);
+  const overview = useMemo(() => stats ? buildStatsOverview(stats, portfolioClients) : null, [stats, portfolioClients]);
   const assistantBoard = useMemo(() => buildCollectionAssistantBoard(clients, followUps), [clients, followUps]);
-  const filteredClients = useMemo(() => clients.filter((client) => (
-    !clientFilters.length || clientFilters.some((filter) => matchesFilter(client, filter))
-  )), [clients, clientFilters]);
-  const selectedFilterLabel = filterOptions
-    .filter((option) => option.key !== 'all' && clientFilters.includes(option.key as SelectedFilter))
-    .map((option) => option.label)
-    .join(' + ') || 'الكل';
+  // Each client belongs to exactly one status. Upcoming dues are a separate reminder,
+  // not another customer status.
+  const statusOverview = useMemo(() => {
+    const groups = {
+      active: [] as Client[],
+      late: [] as Client[],
+      stuck: [] as Client[],
+      court: [] as Client[],
+      done: [] as Client[],
+    };
+    let lateAmount = 0;
+    let upcomingCount = 0;
+    let upcomingAmount = 0;
 
-  function toggleFilter(filter: DashboardFilter) {
-    if (filter === 'all') {
-      setClientFilters([]);
-      return;
-    }
-    setClientFilters((current) => current.includes(filter)
-      ? current.filter((item) => item !== filter)
-      : [...current, filter]);
-  }
+    clients.forEach((client) => {
+      const alert = getClientAlertInfo(client);
+      const category = classifyStatsClient(client, alert);
+      groups[category].push(client);
+      if (category === 'late') lateAmount += alert.overdueAmount;
+      if (category === 'active' && alert.nextUpcoming && alert.daysUntilNext !== null
+        && alert.daysUntilNext >= 0 && alert.daysUntilNext <= 7) {
+        upcomingCount += 1;
+        upcomingAmount += Number(alert.nextUpcoming.remaining_due ?? alert.nextUpcoming.amount ?? 0);
+      }
+    });
 
-  const alertGroups = useMemo(() => {
-    const courtClients = filteredClients.filter((client) => client.has_court);
-    const lateClients = filteredClients
-      .map((client) => ({ client, info: getClientAlertInfo(client) }))
-      .filter(({ client, info }) => isLateClient(client, info));
-    const warnClients = filteredClients
-      .map((client) => ({ client, info: getClientAlertInfo(client) }))
-      .filter(({ client, info }) => !isDoneClient(client) && !isStuckClient(client) && !client.has_court && info.overdueCount === 0 && info.nextUpcoming && info.daysUntilNext !== null && info.daysUntilNext <= 7);
-    const stuckClients = filteredClients.filter((client) => isStuckClient(client) && !client.has_court);
+    const totalRemaining = (group: Client[]) =>
+      group.reduce((sum, client) => sum + Number(client.summary?.remaining_amount || 0), 0);
 
     return {
-      courtClients,
-      lateClients,
-      warnClients,
-      stuckClients,
-      lateAmount: lateClients.reduce((sum, entry) => sum + entry.info.overdueAmount, 0),
-      upcomingAmount: warnClients.reduce((sum, entry) => sum + (entry.info.nextUpcoming?.amount || 0), 0),
-      courtRemaining: courtClients.reduce((sum, client) => sum + Number(client.summary?.remaining_amount || 0), 0),
-      stuckRemaining: stuckClients.reduce((sum, client) => sum + Number(client.summary?.remaining_amount || 0), 0),
+      groups,
+      total: clients.length,
+      lateAmount,
+      upcomingCount,
+      upcomingAmount,
+      activeRemaining: totalRemaining(groups.active),
+      courtRemaining: totalRemaining(groups.court),
+      stuckRemaining: totalRemaining(groups.stuck),
+      stuckPrincipal: groups.stuck.reduce((sum, client) => sum + Number(client.principal || 0), 0),
+      stuckUncollectedPrincipal: groups.stuck.reduce((sum, client) => sum + Number(client.summary?.remaining_principal || 0), 0),
     };
-  }, [filteredClients]);
-  const collectionPreview = useMemo(() => buildCollectionEntries(filteredClients, 'all').slice(0, 5), [filteredClients]);
+  }, [clients]);
 
   return (
     <Screen title="الإحصائيات" subtitle="المحفظة والأرباح والمتابعة اليومية" scrollable={false} compactHeader>
@@ -138,23 +131,56 @@ export default function StatsScreen() {
             <AppCard>
               <SectionHeader title="ملخص المحفظة" actionLabel="التحليل التفصيلي" onActionPress={() => router.push('/stats/details')} />
               <View style={styles.metricGrid}>
-                <MetricCard label="إجمالي قيمة العقود" value={formatCurrency(overview.totalPortfolio)} tone="info" />
-                <MetricCard label="المحصل حتى الآن" value={formatCurrency(overview.totalPaid)} tone="success" />
+                <MetricCard label="قيمة العقود غير المنتهية" value={formatCurrency(overview.totalPortfolio)} tone="info" />
+                <MetricCard label="المحصل من العقود غير المنتهية" value={formatCurrency(overview.totalPaid)} tone="success" />
                 <MetricCard label="المتبقي لدى العملاء" value={formatCurrency(overview.totalRemaining)} tone="danger" />
               </View>
+              <PortfolioCollectionProgress clients={portfolioClients} />
             </AppCard>
 
             <CapitalStatsSection refreshKey={capitalRefreshKey} />
 
-            <AppCard title="حالات العملاء">
-              <View style={styles.metricGrid}>
-                <MetricCard label="إجمالي العملاء" value={String(counts.total)} />
-                <MetricCard label="نشطون" value={String(counts.active)} tone="success" />
-                <MetricCard label="متأخرون" value={String(counts.late)} tone="danger" />
-                <MetricCard label="متعثرون" value={String(counts.stuck)} tone="warning" />
-                <MetricCard label="قضايا" value={String(counts.court)} tone="info" />
-                <MetricCard label="منتهون" value={String(counts.done)} />
+            <AppCard>
+              <SectionHeader
+                title="حالات العملاء والتحصيل"
+                subtitle="كل عميل ضمن حالة واحدة فقط؛ اضغط على الحالة للاطلاع على التفاصيل."
+                actionLabel="مركز التحصيل"
+                onActionPress={() => router.push('/collections')}
+              />
+              <View style={styles.clientTotalRow}>
+                <Text style={styles.clientTotalLabel}>إجمالي العملاء</Text>
+                <Text style={styles.clientTotalValue}>{statusOverview.total}</Text>
               </View>
+              <View style={styles.metricGrid}>
+                <AlertSummaryTile tone="active" title="نشطون" count={statusOverview.groups.active.length} amountText={formatCurrency(statusOverview.activeRemaining)} helperText="المتبقي بالعقود" onPress={() => router.push({ pathname: '/clients', params: { overview: 'active' } })} />
+                <AlertSummaryTile tone="late" title="متأخرون" count={statusOverview.groups.late.length} amountText={formatCurrency(statusOverview.lateAmount)} helperText="إجمالي الأقساط المتأخرة" onPress={() => router.push('/alerts/late')} />
+                <AlertSummaryTile tone="stuck" title="متعثرون" count={statusOverview.groups.stuck.length} amountText={formatCurrency(statusOverview.stuckRemaining)} helperText="المتبقي دون القضايا" onPress={() => router.push('/alerts/stuck')} />
+                <AlertSummaryTile tone="court" title="قضايا" count={statusOverview.groups.court.length} amountText={formatCurrency(statusOverview.courtRemaining)} helperText="المتبقي بالقضايا" onPress={() => router.push('/cases')} />
+                <AlertSummaryTile tone="done" title="منتهون" count={statusOverview.groups.done.length} helperText="عقود مكتملة" onPress={() => router.push({ pathname: '/clients', params: { overview: 'done' } })} />
+              </View>
+              <View style={styles.upcomingSection}>
+                <Text style={styles.subSectionTitle}>الاستحقاقات القريبة</Text>
+                <Text style={styles.helperText}>تنبيه إضافي للعقود النشطة، لا يُضاف إلى إجمالي العملاء.</Text>
+                <View style={styles.metricGrid}>
+                  <AlertSummaryTile tone="warn" title="خلال 7 أيام" count={statusOverview.upcomingCount} amountText={formatCurrency(statusOverview.upcomingAmount)} helperText="المبالغ القادمة" onPress={() => router.push('/alerts/warn')} />
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.stuckDetailsToggle}
+                activeOpacity={0.85}
+                onPress={() => setShowStuckCapital((current) => !current)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: showStuckCapital }}
+              >
+                <Ionicons name={showStuckCapital ? 'chevron-up-outline' : 'chevron-down-outline'} size={18} color={colors.textMuted} />
+                <Text style={styles.stuckDetailsTitle}>تفصيل رأس مال المتعثرين (دون القضايا)</Text>
+              </TouchableOpacity>
+              {showStuckCapital ? (
+                <View style={styles.stuckDetailsContent}>
+                  <KeyValueRow label="إجمالي رأس المال" value={formatCurrency(statusOverview.stuckPrincipal)} />
+                  <KeyValueRow label="رأس المال غير المحصل" value={formatCurrency(statusOverview.stuckUncollectedPrincipal)} />
+                </View>
+              ) : null}
             </AppCard>
 
             <AppCard title="الدفعات والأرباح الشهرية — النشطون فقط">
@@ -167,48 +193,6 @@ export default function StatsScreen() {
             </AppCard>
 
             <AppCard>
-              <SectionHeader title="المتابعة والتحصيل" actionLabel="مركز التحصيل" onActionPress={() => router.push('/collections')} />
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-                {filterOptions.map((option) => {
-                  const selected = option.key === 'all' ? !clientFilters.length : clientFilters.includes(option.key);
-                  return (
-                    <TouchableOpacity
-                      key={option.key}
-                      activeOpacity={0.85}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                      style={[styles.filterChip, selected && styles.filterChipActive]}
-                      onPress={() => toggleFilter(option.key)}
-                    >
-                      <Text style={[styles.filterText, selected && styles.filterTextActive]}>{option.label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-              <Text style={styles.helperText}>المتابعة حسب: {selectedFilterLabel}</Text>
-              <View style={styles.metricGrid}>
-                <AlertSummaryTile tone="late" title="متأخرات" count={alertGroups.lateClients.length} amountText={formatCurrency(alertGroups.lateAmount)} helperText="أقساط تحتاج متابعة" onPress={() => router.push('/alerts/late')} />
-                <AlertSummaryTile tone="warn" title="استحقاقات قريبة" count={alertGroups.warnClients.length} amountText={formatCurrency(alertGroups.upcomingAmount)} helperText="خلال 7 أيام" onPress={() => router.push('/alerts/warn')} />
-                <AlertSummaryTile tone="court" title="قضايا المحكمة" count={alertGroups.courtClients.length} amountText={formatCurrency(alertGroups.courtRemaining)} onPress={() => router.push('/cases')} />
-                <AlertSummaryTile tone="stuck" title="حالات التعثر" count={alertGroups.stuckClients.length} amountText={formatCurrency(alertGroups.stuckRemaining)} helperText="حالات غير قضائية" onPress={() => router.push('/alerts/stuck')} />
-              </View>
-              {collectionPreview.length ? (
-                <View style={styles.previewList}>
-                  {collectionPreview.map((entry) => (
-                    <CollectionPreviewRow
-                      key={entry.key}
-                      entry={entry}
-                      onPress={() => router.push({
-                        pathname: '/clients/[id]',
-                        params: { id: String(entry.client.id), focusPeriod: entry.item.period_key },
-                      })}
-                    />
-                  ))}
-                </View>
-              ) : <EmptyState title="لا توجد دفعات مفتوحة" description="لا توجد أقساط متأخرة أو قريبة ضمن الفلتر المحدد." />}
-            </AppCard>
-
-            <AppCard>
               <SectionHeader title="مؤشر التحصيل الذكي" actionLabel="فتح المساعد" onActionPress={() => router.push('/assistant' as never)} />
               <View style={styles.metricGrid}>
                 <MetricCard label="أولويات اليوم" value={assistantLoading ? '…' : String(assistantBoard.totalLeads)} tone="info" />
@@ -218,22 +202,33 @@ export default function StatsScreen() {
               </View>
             </AppCard>
 
-            <AppCard title="الزكاة والصدقة — ما عدا المتعثرين">
+            <AppCard>
+              <SectionHeader title="الزكاة والصدقات" actionLabel="سجل الصدقات" onActionPress={() => router.push('/stats/charity' as never)} />
               <View style={styles.metricGrid}>
                 <MetricCard label="وعاء الزكاة" value={formatCurrency(stats.zakat_base)} />
                 <MetricCard label="الزكاة 2.5%" value={formatCurrency(stats.zakat)} tone="success" />
-                <MetricCard label="الصدقة 1%" value={formatCurrency(stats.sadaqa)} tone="info" />
-                <MetricCard label="المجموع" value={formatCurrency(stats.zakat + stats.sadaqa)} tone="warning" />
               </View>
-              <Text style={styles.helperText}>المتعثرون مستثنون من حساب الزكاة والصدقة.</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="فتح سجل الصدقات"
+                style={styles.charityLink}
+                onPress={() => router.push('/stats/charity' as never)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.charityTextColumn}>
+                  <Text style={styles.charityTitle}>الصدقة 1% من أرباح أحمد</Text>
+                  <Text style={styles.charityHint}>جميع العقود عدا المتعثرين، وتشمل المنتهية</Text>
+                  <Text style={styles.charityPaid}>المستحق {formatCurrency(stats.sadaqa_total ?? stats.sadaqa)} · المدفوع {formatCurrency(stats.sadaqa_paid ?? 0)}</Text>
+                  {(stats.sadaqa_overpaid ?? 0) > 0 ? <Text style={styles.charityPaid}>رصيد زائد {formatCurrency(stats.sadaqa_overpaid)}</Text> : null}
+                </View>
+                <View style={styles.charityAmountColumn}>
+                  <Text style={styles.charityAmountLabel}>المتبقي</Text>
+                  <Text style={styles.charityAmount} numberOfLines={1} adjustsFontSizeToFit>{formatCurrency(stats.sadaqa)}</Text>
+                </View>
+                <Ionicons name="chevron-back" size={18} color={colors.info} />
+              </TouchableOpacity>
             </AppCard>
 
-            <AppCard>
-              <SectionHeader title="أموال المتعثرين" actionLabel="فتح الحالات" onActionPress={() => router.push('/alerts/stuck')} />
-              <KeyValueRow label="إجمالي المبالغ المتبقية" value={formatCurrency(stats.stuck.total_remaining)} />
-              <KeyValueRow label="إجمالي رأس المال" value={formatCurrency(stats.stuck.total_principal)} />
-              <KeyValueRow label="رأس المال غير المحصل" value={formatCurrency(stats.stuck.remaining_principal)} />
-            </AppCard>
           </>
         ) : null}
       </ScrollView>
@@ -241,52 +236,40 @@ export default function StatsScreen() {
   );
 }
 
-function buildClientCounts(clients: Client[]) {
-  return clients.reduce((counts, client) => {
-    if (client.has_court) counts.court += 1;
-    if (isStuckClient(client) && !client.has_court) counts.stuck += 1;
-    if (isDoneClient(client)) counts.done += 1;
-    if (isLateClient(client) && !client.has_court) counts.late += 1;
-    if (isActiveClient(client)) counts.active += 1;
-    return counts;
-  }, { total: clients.length, active: 0, late: 0, stuck: 0, court: 0, done: 0 });
-}
-
-function matchesFilter(client: Client, filter: SelectedFilter): boolean {
-  if (filter === 'court') return client.has_court;
-  if (filter === 'stuck') return isStuckClient(client) && !client.has_court;
-  if (filter === 'done') return isDoneClient(client);
-  if (filter === 'late') return isLateClient(client) && !client.has_court;
-  return isActiveClient(client);
-}
-
-function isActiveClient(client: Client): boolean {
-  return client.status === 'active' && !client.has_court && !isDoneClient(client)
-    && !isLateClient(client) && Number(client.summary?.remaining_amount || 0) > 0.01;
-}
-
-function isLateClient(client: Client, info = getClientAlertInfo(client)): boolean {
-  return !isDoneClient(client) && !isStuckClient(client)
-    && Number(client.summary?.remaining_amount || 0) > 0.01 && info.overdueCount > 0;
-}
-
-function isStuckClient(client: Client): boolean {
-  return client.status === 'stuck';
-}
-
-function isDoneClient(client: Client): boolean {
-  return client.status === 'done' || Number(client.summary?.remaining_amount || 0) <= 0.01;
-}
-
 const styles = StyleSheet.create({
   content: { paddingBottom: 84 },
   metricGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10 },
-  filterRow: { flexDirection: 'row-reverse', gap: 8, paddingVertical: 2 },
-  filterChip: { backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
-  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterText: { color: colors.text, fontSize: 12, fontWeight: '800' },
-  filterTextActive: { color: '#fff' },
+  clientTotalRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    backgroundColor: colors.surfaceMuted,
+  },
+  clientTotalLabel: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  clientTotalValue: { color: colors.text, fontSize: 24, fontWeight: '900' },
+  upcomingSection: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 14, gap: 7 },
+  subSectionTitle: { color: colors.text, textAlign: 'right', fontSize: 14, fontWeight: '800' },
   helperText: { color: colors.textMuted, fontSize: 12, lineHeight: 20, textAlign: 'right' },
-  previewList: { gap: 8 },
+  stuckDetailsToggle: {
+    borderTopWidth: 1, borderTopColor: colors.border,
+    paddingTop: 14, flexDirection: 'row', alignItems: 'center', gap: 9,
+  },
+  stuckDetailsTitle: { flex: 1, textAlign: 'right', color: colors.text, fontSize: 13, fontWeight: '700' },
+  stuckDetailsContent: { gap: 6 },
+  charityLink: {
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 8,
+    borderWidth: 1, borderColor: '#c3dbf5', borderRadius: 14,
+    paddingHorizontal: 12, paddingVertical: 13, backgroundColor: colors.infoSoft,
+  },
+  charityTextColumn: { flex: 1, gap: 5 },
+  charityTitle: { textAlign: 'right', fontSize: 13, fontWeight: '800', color: colors.text },
+  charityHint: { textAlign: 'right', color: colors.textMuted, fontSize: 11 },
+  charityPaid: { textAlign: 'right', color: colors.textMuted, fontSize: 11 },
+  charityAmountColumn: { maxWidth: '40%', gap: 6, alignItems: 'flex-end' },
+  charityAmountLabel: { color: colors.textMuted, fontSize: 11 },
+  charityAmount: { color: colors.info, fontSize: 15, fontWeight: '900', textAlign: 'left' },
   errorText: { color: colors.danger, textAlign: 'right', lineHeight: 24 },
 });

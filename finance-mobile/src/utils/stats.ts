@@ -1,6 +1,17 @@
 import { formatDateDDMMYYYY } from '@/utils/format';
 import { Client, PaymentScheduleItem, StatsData } from '@/types/api';
-import { getClientAlertInfo, getOverdueScheduleItems, getUpcomingScheduleItems } from '@/utils/finance';
+import { ClientAlertInfo, getClientAlertInfo, getOverdueScheduleItems, getUpcomingScheduleItems } from '@/utils/finance';
+
+export type StatsClientCategory = 'active' | 'late' | 'stuck' | 'court' | 'done';
+
+// Exclusive classification for the statistics dashboard and its client drilldown.
+export function classifyStatsClient(client: Client, alert = getClientAlertInfo(client)): StatsClientCategory {
+  if (client.status === 'done' || Number(client.summary?.remaining_amount || 0) <= 0.01) return 'done';
+  if (client.has_court) return 'court';
+  if (client.status === 'stuck') return 'stuck';
+  if (alert.overdueCount > 0) return 'late';
+  return 'active';
+}
 
 export interface RankedClientRow {
   client: Client;

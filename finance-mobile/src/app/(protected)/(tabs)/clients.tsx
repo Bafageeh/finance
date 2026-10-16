@@ -1,4 +1,4 @@
-import { useIsFocused } from 'expo-router';
+import { useIsFocused, useLocalSearchParams } from 'expo-router';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -21,6 +21,7 @@ import { getClients } from '@/services/api';
 import { Client, ClientFilter } from '@/types/api';
 import { clientMatchesSearch } from '@/utils/format';
 import { getClientAlertInfo } from '@/utils/finance';
+import { classifyStatsClient, StatsClientCategory } from '@/utils/stats';
 import { colors } from '@/utils/theme';
 
 const CLIENTS_PAGE_SIZE = 5;
@@ -28,10 +29,16 @@ const LOAD_MORE_DISTANCE = 220;
 
 export default function ClientsScreen() {
   const isFocused = useIsFocused();
+  const params = useLocalSearchParams<{ overview?: string }>();
   const loadMoreLockRef = useRef(false);
 
   const [clients, setClients] = useState<Client[]>([]);
   const [filter, setFilter] = useState<ClientFilter>('all');
+  const [overviewFilter, setOverviewFilter] = useState<StatsClientCategory | null>(() => {
+    const requested = params.overview;
+    return requested === 'active' || requested === 'late' || requested === 'stuck'
+      || requested === 'court' || requested === 'done' ? requested : null;
+  });
   const [showDoneClients, setShowDoneClients] = useState(false);
   const [query, setQuery] = useState('');
   const [visibleCount, setVisibleCount] = useState(CLIENTS_PAGE_SIZE);
@@ -43,7 +50,7 @@ export default function ClientsScreen() {
     try {
       if (!silent) setLoading(true);
       setError(null);
-      const requestFilter = customFilter === 'late' ? 'all' : customFilter;
+      const requestFilter = overviewFilter || customFilter === 'late' ? 'all' : customFilter;
       const data = await getClients(requestFilter);
       setClients(data);
     } catch (err) {
@@ -55,19 +62,29 @@ export default function ClientsScreen() {
   }
 
   useEffect(() => {
+    const requested = params.overview;
+    if (!isFocused || !requested) return;
+    if (requested === 'active' || requested === 'late' || requested === 'stuck' || requested === 'court' || requested === 'done') {
+      setOverviewFilter(requested);
+      setFilter('all');
+    }
+  }, [isFocused, params.overview]);
+
+  useEffect(() => {
     if (isFocused) {
       void loadData(false, filter);
     }
-  }, [isFocused, filter]);
+  }, [isFocused, filter, overviewFilter]);
 
   const filteredClients = useMemo(
     () =>
       clients.filter((client) => {
         if (!clientMatchesSearch(client, query)) return false;
+        if (overviewFilter && classifyStatsClient(client) !== overviewFilter) return false;
         if (filter === 'late') return getClientAlertInfo(client).overdueCount > 0;
         return true;
       }),
-    [clients, filter, query],
+    [clients, filter, query, overviewFilter],
   );
 
   const sortedFilteredClients = useMemo(
@@ -104,10 +121,10 @@ export default function ClientsScreen() {
 
   const displayClients = useMemo(
     () => {
-      if (filter === 'done' || showDoneClients) return sortedFilteredClients;
+      if (filter === 'done' || overviewFilter === 'done' || showDoneClients) return sortedFilteredClients;
       return sortedFilteredClients.filter((client) => client.status !== 'done');
     },
-    [filter, showDoneClients, sortedFilteredClients],
+    [filter, overviewFilter, showDoneClients, sortedFilteredClients],
   );
 
   useEffect(() => {
@@ -155,7 +172,7 @@ export default function ClientsScreen() {
   const listHeader = (
     <View style={styles.headerStack}>
       <View style={styles.searchRow}>
-        <ClientFilterDropdown value={filter} onChange={setFilter} />
+        <ClientFilterDropdown value={filter} onChange={(next) => { setOverviewFilter(null); setFilter(next); }} />
 
         <View style={styles.searchWrap}>
           <Ionicons name="search-outline" size={22} color="#6f6962" />
@@ -179,6 +196,16 @@ export default function ClientsScreen() {
         </View>
       </View>
 
+      {overviewFilter ? (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.statsFilterBanner}
+          onPress={() => { setOverviewFilter(null); setFilter('all'); }}
+        >
+          <Text style={styles.statsFilterClear}>عرض كل العملاء</Text>
+          <Text style={styles.statsFilterLabel}>من الإحصائيات: {({ active: 'نشطون', late: 'متأخرون', stuck: 'متعثرون', court: 'قضايا', done: 'منتهون' } as Record<StatsClientCategory, string>)[overviewFilter]}</Text>
+        </TouchableOpacity>
+      ) : null}
       <View style={styles.summaryRow}>
         <Text style={styles.summaryText}>إجمالي {clients.length}</Text>
         <View style={styles.dot} />
@@ -275,6 +302,13 @@ export default function ClientsScreen() {
 }
 
 const styles = StyleSheet.create({
+  statsFilterBanner: {
+    marginTop: 8, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+    backgroundColor: colors.infoSoft, flexDirection: 'row',
+    justifyContent: 'space-between', alignItems: 'center', gap: 8,
+  },
+  statsFilterLabel: { color: colors.info, fontSize: 12, fontWeight: '800', textAlign: 'right' },
+  statsFilterClear: { color: colors.info, fontSize: 12, textDecorationLine: 'underline' },
   completedAccordion: {
     marginHorizontal: 20,
     marginBottom: 12,

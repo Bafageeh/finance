@@ -71,7 +71,7 @@ export default function CollectionCenterScreen() {
       title="مركز التحصيل"
       subtitle="قائمة تشغيل يومية للأقساط المتأخرة والقريبة مع فتح العميل مباشرة عند الحاجة."
       scrollable={false}
-      rightSlot={<IconButton icon="arrow-forward" accessibilityLabel="رجوع" onPress={() => router.back()} />}
+      rightSlot={<IconButton icon="arrow-back" accessibilityLabel="رجوع" onPress={() => router.back()} />}
     >
       <TextInput
         style={styles.search}

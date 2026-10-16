@@ -183,11 +183,11 @@ export default function ClientDetailsScreen() {
       compactHeader
       rightSlot={
         <View style={styles.headerActions}>
-          <IconButton icon="arrow-forward" accessibilityLabel="رجوع" onPress={() => router.back()} />
           {client ? <>
-            <IconButton icon="create-outline" accessibilityLabel="تعديل العميل" onPress={() => router.push({ pathname: '/clients/form', params: { id: String(client.id) } })} />
             <IconButton icon="trash-outline" accessibilityLabel="حذف العميل" variant="danger" onPress={handleDelete} />
+            <IconButton icon="create-outline" accessibilityLabel="تعديل العميل" onPress={() => router.push({ pathname: '/clients/form', params: { id: String(client.id) } })} />
           </> : null}
+          <IconButton icon="arrow-back" accessibilityLabel="رجوع" onPress={() => router.back()} />
         </View>
       }
     >

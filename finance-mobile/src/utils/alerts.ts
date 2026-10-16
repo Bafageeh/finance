@@ -1,6 +1,7 @@
 import { AlertTone } from '@/components/AlertItemCard';
 import { AlertRouteType } from '@/constants/alerts';
 import { Client, PaymentScheduleItem } from '@/types/api';
+import { classifyStatsClient } from '@/utils/stats';
 import { clientMatchesSearch, formatDateDDMMYYYY } from '@/utils/format';
 import { getClientAlertInfo, getDaysUntil, getOverdueScheduleItems, getUpcomingScheduleItems } from '@/utils/finance';
 
@@ -45,7 +46,7 @@ export function buildAlertEntries(clients: Client[], type: AlertRouteType): Aler
           const firstLate = getOverdueScheduleItems(client).sort(sortByDueDateAsc)[0] || null;
           return { client, alertInfo, firstLate };
         })
-        .filter(({ alertInfo }) => alertInfo.overdueCount > 0)
+        .filter(({ client, alertInfo }) => classifyStatsClient(client, alertInfo) === 'late')
         .sort((a, b) => b.alertInfo.overdueAmount - a.alertInfo.overdueAmount)
         .map(({ client, alertInfo, firstLate }) => ({
           client,
@@ -62,14 +63,14 @@ export function buildAlertEntries(clients: Client[], type: AlertRouteType): Aler
           const alertInfo = getClientAlertInfo(client);
           return { client, alertInfo };
         })
-        .filter(({ alertInfo }) => alertInfo.overdueCount === 0 && alertInfo.nextUpcoming && alertInfo.daysUntilNext !== null && alertInfo.daysUntilNext <= 7)
+        .filter(({ client, alertInfo }) => classifyStatsClient(client, alertInfo) === 'active' && alertInfo.nextUpcoming && alertInfo.daysUntilNext !== null && alertInfo.daysUntilNext >= 0 && alertInfo.daysUntilNext <= 7)
         .sort((a, b) => (a.alertInfo.daysUntilNext || 0) - (b.alertInfo.daysUntilNext || 0))
         .map(({ client, alertInfo }) => ({
           client,
           tone: 'warn',
           title: `${client.name} · خلال ${alertInfo.daysUntilNext} أيام`,
           description: `${alertInfo.nextUpcoming?.due_date || ''} · ${client.asset || 'بدون أصل محدد'}`,
-          amount: alertInfo.nextUpcoming?.amount || 0,
+          amount: Number(alertInfo.nextUpcoming?.remaining_due ?? alertInfo.nextUpcoming?.amount ?? 0),
           focusPeriod: alertInfo.nextUpcoming?.period_key,
         }));
 
